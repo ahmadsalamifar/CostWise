@@ -7,27 +7,28 @@ import * as Categories from './categories.js';
 import * as Store from './store.js';
 import * as Print from './print.js';
 
-// تابع رفرش کلی
+// --- مدیریت اصلی وضعیت برنامه ---
+
 async function refreshApp() {
-    console.log("🔄 Refreshing App Data...");
-    await fetchAllData();
-    updateUI();
+    try {
+        await fetchAllData();
+        updateUI();
+    } catch (e) { console.error(e); }
 }
 
 function updateUI() {
+    // رفرش کردن همه ماژول‌ها
     Formulas.renderFormulaList();
     Materials.renderMaterials();
     Categories.renderCategories(refreshApp);
     Store.renderStore(refreshApp);
     
-    // اگر فرمولی باز است، دوباره آن را پیدا و رندر کن
+    // اگر فرمولی باز بود، رفرش شود
     if (state.activeFormulaId) {
         const f = state.formulas.find(x => x.$id === state.activeFormulaId);
         if (f) {
-            // پاس دادن refreshApp بسیار مهم است برای دکمه‌ها
             Formulas.renderFormulaDetail(f, refreshApp);
         } else {
-            // فرمول حذف شده
             state.activeFormulaId = null;
             document.getElementById('formula-detail-view').classList.add('hidden');
             document.getElementById('formula-detail-empty').classList.remove('hidden');
@@ -36,8 +37,10 @@ function updateUI() {
     
     Formulas.updateDropdowns();
     Formulas.updateCompSelect();
+    updateMatCatDropdown();
+}
 
-    // فیلتر انبار
+function updateMatCatDropdown() {
     const matCat = document.getElementById('mat-category');
     if(matCat) {
         const val = matCat.value;
@@ -47,26 +50,32 @@ function updateUI() {
     }
 }
 
+// --- شروع برنامه ---
 document.addEventListener('DOMContentLoaded', async () => {
     try {
+        // ورود خودکار (Anonymous)
         try { await account.get(); } catch { await account.createAnonymousSession(); }
+        
         await fetchAllData();
         
+        // نمایش UI
         document.getElementById('loading-screen').classList.add('hidden');
         document.getElementById('app-content').classList.remove('hidden');
         
+        // تب‌ها
         document.getElementById('btn-tab-formulas').onclick = () => switchTab('formulas');
         document.getElementById('btn-tab-materials').onclick = () => switchTab('materials');
         document.getElementById('btn-tab-categories').onclick = () => switchTab('categories');
         document.getElementById('btn-open-store').onclick = () => switchTab('store');
         
-        // *** انتقال تابع رفرش به ماژول‌ها ***
+        // راه‌اندازی ماژول‌ها
         Formulas.setupFormulas(refreshApp);
         Materials.setupMaterials(refreshApp);
         Categories.setupCategories(refreshApp);
         Store.setupStore(refreshApp);
         Print.setupPrint();
         
+        // فرمترهای ورودی پول
         document.querySelectorAll('.price-input').forEach(el => {
             el.addEventListener('input', () => formatInput(el));
         });
@@ -76,7 +85,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
     } catch (err) {
         console.error(err);
-        document.getElementById('loading-text').innerText = err.message;
-        document.getElementById('loading-text').style.color = 'red';
+        document.getElementById('loading-text').innerText = "خطا در اتصال: " + err.message;
+        document.getElementById('loading-text').className = 'text-rose-500 text-sm font-bold';
     }
 });

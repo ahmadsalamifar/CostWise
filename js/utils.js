@@ -1,31 +1,44 @@
+// توابع کمکی و ابزارها
+
+// فرمت کردن قیمت (۳ رقم ۳ رقم)
 export function formatPrice(n) {
-    if (n === undefined || n === null) return '0';
+    if (n === undefined || n === null || isNaN(n)) return '0';
     return Number(n).toLocaleString('en-US');
 }
 
+// حذف کاما از ورودی عدد برای ذخیره‌سازی
+export function parseLocaleNumber(stringNumber) {
+    if (!stringNumber) return 0;
+    const clean = stringNumber.toString().replace(/,/g, '');
+    return parseFloat(clean) || 0;
+}
+
+// فرمت کردن تاریخ شمسی
 export function formatDate(d) {
     return d ? new Date(d).toLocaleDateString('fa-IR') : '';
 }
 
+// بج (Badge) تاریخ بروزرسانی
 export function getDateBadge(dateString) {
     if (!dateString) return '';
     const date = new Date(dateString);
     const diffTime = Math.abs(new Date() - date);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    // زیر ۷ روز = سبز (جدید)، بیشتر = نارنجی (قدیمی)
-    const colorClass = diffDays < 7 
-        ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
-        : 'bg-orange-100 text-orange-700 border-orange-200';
+    let colorClass = 'bg-emerald-100 text-emerald-700 border-emerald-200'; // جدید
+    if(diffDays > 7) colorClass = 'bg-orange-100 text-orange-700 border-orange-200'; // هفته پیش
+    if(diffDays > 30) colorClass = 'bg-slate-100 text-slate-500 border-slate-200'; // قدیمی
     
     return `<span class="text-[10px] px-1.5 py-0.5 rounded border ${colorClass}">${formatDate(dateString)}</span>`;
 }
 
+// اعمال فرمت ۳ رقم هنگام تایپ در اینپوت
 export function formatInput(el) {
     const r = el.value.replace(/[^0-9.]/g, '');
     el.value = r ? parseFloat(r).toLocaleString('en-US') : '';
 }
 
+// تغییر تب‌ها (Navigation)
 export function switchTab(id) {
     ['formulas', 'materials', 'categories', 'store'].forEach(t => {
         const el = document.getElementById('tab-' + t);

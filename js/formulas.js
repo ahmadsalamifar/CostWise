@@ -1,222 +1,188 @@
-import { api, fetchSingleFormula } from './api.js';
+import { api } from './api.js';
 import { state, APPWRITE_CONFIG } from './config.js';
-import { formatPrice, formatDate, getDateBadge, openModal, closeModal } from './utils.js';
+import { formatPrice, parseLocaleNumber, formatDate, openModal, closeModal } from './utils.js';
 
 export function setupFormulas(refreshCallback) {
-    console.log("🔧 Setup Formulas Started");
-
-    // چک کردن وجود المنت‌ها
-    const requiredIds = ['formula-master-list', 'formula-detail-view', 'formula-comps-list'];
-    requiredIds.forEach(id => {
-        if (!document.getElementById(id)) console.error(`❌ CRITICAL ERROR: Element #${id} not found in HTML!`);
-    });
-
-    // دکمه‌ها
-    bindClick('btn-open-new-formula', () => openModal('new-formula-modal'));
-    bindClick('btn-cancel-formula', () => closeModal('new-formula-modal'));
-    bindClick('btn-create-formula', () => createFormula(refreshCallback));
+    // رویدادهای اصلی
+    document.getElementById('btn-open-new-formula').onclick = () => openModal('new-formula-modal');
+    document.getElementById('btn-cancel-formula').onclick = () => closeModal('new-formula-modal');
+    document.getElementById('btn-create-formula').onclick = () => createFormula(refreshCallback);
     
     // جستجو
     const searchEl = document.getElementById('search-formulas');
     if(searchEl) searchEl.oninput = (e) => renderFormulaList(e.target.value);
     
-    // افزودن کالا
-    const addForm = document.getElementById('form-add-comp');
-    if(addForm) addForm.onsubmit = (e) => { e.preventDefault(); addComp(refreshCallback); };
+    // افزودن جزء به فرمول
+    document.getElementById('form-add-comp').onsubmit = (e) => { e.preventDefault(); addComp(refreshCallback); };
 
-    // اینپوت‌ها
+    // تغییر مقادیر مالی (دستمزد و ...)
     ['labor', 'overhead', 'profit'].forEach(key => {
-        const el = document.getElementById('inp-' + key);
-        if(el) el.onchange = (e) => updateCost(key, e.target.value, refreshCallback);
+        document.getElementById('inp-' + key).onchange = (e) => updateCostVariables(key, e.target.value, refreshCallback);
     });
 
-    // فیلتر
-    const filterEl = document.getElementById('comp-filter');
-    if(filterEl) filterEl.onchange = updateCompSelect;
+    // فیلتر لیست افزودن
+    document.getElementById('comp-filter').onchange = updateCompSelect;
 
-    // انتخاب از لیست (Delegation)
-    const listEl = document.getElementById('formula-master-list');
-    if(listEl) {
-        listEl.addEventListener('click', (e) => {
-            const item = e.target.closest('[data-id]');
-            if(item) selectFormula(item.getAttribute('data-id'), refreshCallback);
-        });
-    }
+    // انتخاب فرمول از لیست سمت راست
+    document.getElementById('formula-master-list').addEventListener('click', (e) => {
+        const item = e.target.closest('[data-id]');
+        if(item) selectFormula(item.getAttribute('data-id'), refreshCallback);
+    });
+
+    // دکمه کپی
+    document.getElementById('btn-duplicate-formula').onclick = () => duplicateFormula(refreshCallback);
+    
+    // تغییر نام
+    document.getElementById('active-formula-name').onclick = () => renameFormula(refreshCallback);
+    
+    // حذف
+    document.getElementById('btn-delete-formula').onclick = () => deleteFormula(refreshCallback);
 }
 
-// تابع کمکی برای جلوگیری از خطا
-function bindClick(id, handler) {
-    const el = document.getElementById(id);
-    if(el) el.onclick = handler;
-}
-
-// --- رندر لیست ---
+// --- لیست سمت راست (Master List) ---
 export function renderFormulaList(filter='') {
     const list = state.formulas.filter(f => f.name.includes(filter));
     const el = document.getElementById('formula-master-list');
-    if(!el) return;
     
-    if(!list.length) { el.innerHTML = '<p class="text-center text-slate-400 text-xs mt-10">یافت نشد</p>'; return; }
+    if(!list.length) { el.innerHTML = '<p class="text-center text-slate-400 text-xs mt-10">موردی یافت نشد</p>'; return; }
     
     el.innerHTML = list.map(f => `
         <div class="p-3 border-b border-slate-100 cursor-pointer hover:bg-teal-50 transition-colors ${f.$id===state.activeFormulaId ? 'bg-teal-50 border-r-4 border-teal-600' : ''}" data-id="${f.$id}">
             <div class="font-bold text-xs text-slate-700 pointer-events-none">${f.name}</div>
-            <div class="text-[10px] text-slate-400 mt-0.5 pointer-events-none">${formatDate(f.$updatedAt)}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 pointer-events-none flex justify-between">
+                <span>${formatDate(f.$updatedAt)}</span>
+                <span>${formatPrice(calculateCost(f).final)} T</span>
+            </div>
         </div>
     `).join('');
 }
 
-// --- انتخاب فرمول ---
+// --- انتخاب و نمایش جزئیات ---
 export function selectFormula(id, refreshCallback) {
-    console.log("👉 Selecting Formula:", id);
     state.activeFormulaId = id;
-    renderFormulaList();
+    renderFormulaList(); // برای هایلایت شدن آیتم
     
-    // مدیریت نمایش پنل‌ها
-    const emptyEl = document.getElementById('formula-detail-empty');
+    document.getElementById('formula-detail-empty').classList.add('hidden');
     const viewEl = document.getElementById('formula-detail-view');
-    
-    if(emptyEl) {
-        emptyEl.classList.remove('flex'); // اطمینان از حذف flex
-        emptyEl.classList.add('hidden');
-    }
-    
-    if(viewEl) {
-        viewEl.classList.remove('hidden');
-        viewEl.classList.add('flex');
-    } else {
-        console.error("❌ #formula-detail-view not found!");
-        return;
-    }
+    viewEl.classList.remove('hidden');
+    viewEl.classList.add('flex');
 
     const f = state.formulas.find(x => x.$id === id);
     if(f) renderFormulaDetail(f, refreshCallback);
     
-    // اسکرول موبایل
     if(window.innerWidth < 1024) document.getElementById('detail-panel')?.scrollIntoView({behavior:'smooth'});
 }
 
-// --- رندر جزئیات ---
 export function renderFormulaDetail(f, refreshCallback) {
-    // 1. پر کردن فیلدها
-    const nameEl = document.getElementById('active-formula-name');
-    if(nameEl) {
-        nameEl.innerText = f.name;
-        // اتصال مجدد رویداد کلیک برای اطمینان
-        nameEl.onclick = () => renameFormula(refreshCallback);
-    }
-
-    // اتصال دکمه حذف همینجا (برای اطمینان)
-    const delBtn = document.getElementById('btn-delete-formula');
-    if(delBtn) delBtn.onclick = () => deleteFormula(refreshCallback);
-
+    document.getElementById('active-formula-name').innerText = f.name;
+    document.getElementById('active-formula-date').innerText = "بروزرسانی: " + formatDate(f.$updatedAt);
+    
     document.getElementById('inp-labor').value = formatPrice(f.labor);
     document.getElementById('inp-overhead').value = formatPrice(f.overhead);
     document.getElementById('inp-profit').value = f.profit;
 
-    // 2. آپدیت دراپ‌داون‌ها
     updateDropdowns(); 
     updateCompSelect();
 
-    // 3. لیست کالاها
+    // لیست اجزاء
     let comps = [];
     try { comps = JSON.parse(f.components || '[]'); } catch(e) { console.error(e); }
 
     const listEl = document.getElementById('formula-comps-list');
-    if(!listEl) {
-        console.error("❌ #formula-comps-list not found!");
-        return;
-    }
-
-    console.log("📝 Generating HTML for", comps.length, "items");
-
+    
     if(comps.length === 0) {
-        listEl.innerHTML = '<div class="p-8 text-center text-slate-400 text-xs">لیست مواد خالی است.</div>';
+        listEl.innerHTML = '<div class="p-8 text-center text-slate-400 text-xs">لیست مواد تشکیل دهنده خالی است.</div>';
     } else {
-        // ساخت HTML
-        const html = comps.map((c, idx) => {
-            let name = '?', unit = '-', price = 0, total = 0, badge = '';
+        listEl.innerHTML = comps.map((c, idx) => {
+            let name = '?', unit = '-', price = 0, conversion = 1, total = 0, info='';
             
             if(c.type === 'mat') {
                 const m = state.materials.find(x => x.$id === c.id);
                 if(m) { 
-                    name = m.name; unit = m.unit; price = m.price; 
-                    badge = getDateBadge(m.$updatedAt);
+                    name = m.display_name || m.name; // استفاده از نام نمایشی V2
+                    unit = m.consumption_unit; // استفاده از واحد مصرف V2
+                    conversion = m.conversion_rate || 1;
+                    // محاسبه قیمت: (قیمت خرید / ضریب) * تعداد
+                    price = (m.price / conversion); 
+                    info = `(نرخ پایه: ${formatPrice(m.price)} / ${m.purchase_unit})`;
                 } else { 
-                    name = '(کالا حذف شده)'; badge = '<span class="text-rose-500">!</span>'; 
+                    name = '(کالا حذف شده)'; 
                 }
             } else {
+                // اگر جزء خودش یک فرمول دیگر باشد (Sub-assembly)
                 const sub = state.formulas.find(x => x.$id === c.id);
                 if(sub) { 
                     name = `🔗 ${sub.name}`; unit = 'عدد'; 
                     price = calculateCost(sub).final;
-                    badge = getDateBadge(sub.$updatedAt);
                 } else { name = '(فرمول حذف شده)'; }
             }
+            
             total = price * c.qty;
             
             return `
-            <div class="flex justify-between items-center p-3 text-sm border-b border-slate-50 hover:bg-slate-50">
+            <div class="flex justify-between items-center p-3 text-sm hover:bg-slate-50 group">
                 <div class="flex-grow">
                     <div class="font-bold text-slate-700 text-xs flex items-center gap-2">
-                        ${name} ${badge}
+                        ${name}
                     </div>
                     <div class="text-[10px] text-slate-400 mt-0.5">
-                        <span class="bg-slate-100 px-1 rounded border">${c.qty}</span> ${unit} × ${formatPrice(price)}
+                        <span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-mono">${c.qty}</span> ${unit}
+                        <span class="opacity-50 mx-1">×</span>
+                        <span>${formatPrice(price.toFixed(0))}</span>
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
-                    <span class="font-mono font-bold text-slate-600 text-xs">${formatPrice(total)}</span>
-                    <button class="text-rose-400 px-2 py-1 rounded hover:bg-rose-50 btn-del-comp" data-idx="${idx}">×</button>
+                <div class="flex items-center gap-3">
+                    <div class="text-right">
+                        <div class="font-mono font-bold text-slate-600 text-xs">${formatPrice(total.toFixed(0))}</div>
+                    </div>
+                    <button class="text-rose-400 opacity-0 group-hover:opacity-100 px-2 py-1 rounded hover:bg-rose-50 btn-del-comp transition-opacity" data-idx="${idx}">×</button>
                 </div>
             </div>`;
         }).join('');
         
-        listEl.innerHTML = html;
-
-        // اتصال دکمه‌های حذف
+        // رویداد حذف سطر
         listEl.querySelectorAll('.btn-del-comp').forEach(btn => {
-            btn.onclick = () => removeComp(f.$id, parseInt(btn.dataset.idx), () => {
-                // رفرش داخلی
-                api.get(APPWRITE_CONFIG.COLS.FORMS, f.$id).then(updatedF => {
-                    const index = state.formulas.findIndex(i => i.$id === f.$id);
-                    if(index !== -1) state.formulas[index] = updatedF;
-                    renderFormulaDetail(updatedF, refreshCallback);
-                });
-            });
+            btn.onclick = () => removeComp(f, parseInt(btn.dataset.idx), refreshCallback);
         });
     }
 
-    // 4. قیمت نهایی
+    // محاسبه نهایی
     const calc = calculateCost(f);
-    document.getElementById('lbl-final-price').innerText = formatPrice(calc.final);
+    document.getElementById('lbl-final-price').innerText = formatPrice(calc.final.toFixed(0));
 }
 
-// --- توابع محاسباتی و دراپ‌داون ---
+// --- منطق محاسباتی V2 ---
 export function calculateCost(f) {
     if(!f) return {matCost:0, sub:0, profit:0, final:0};
     let matCost=0;
     const comps = JSON.parse(f.components || '[]');
+    
     comps.forEach(c => {
         if(c.type==='mat') {
             const m = state.materials.find(x => x.$id === c.id);
-            if(m) matCost += m.price * c.qty;
+            if(m) {
+                const conversion = m.conversion_rate || 1;
+                // فرمول اصلی: (قیمت خرید / ضریب تبدیل) * مقدار مصرفی
+                matCost += (m.price / conversion) * c.qty;
+            }
         } else {
             const sub = state.formulas.find(x => x.$id === c.id);
             if(sub) matCost += calculateCost(sub).final * c.qty;
         }
     });
+    
     const sub = matCost + (f.labor||0) + (f.overhead||0);
     const profit = (f.profit||0)/100 * sub;
     return {matCost, sub, profit, final: sub+profit};
 }
 
+// --- دراپ‌داون‌ها ---
 export function updateDropdowns() {
     const filterEl = document.getElementById('comp-filter');
     if(!filterEl) return;
     const current = filterEl.value;
     const c = state.categories.map(x => `<option value="${x.$id}">${x.name}</option>`).join('');
-    filterEl.innerHTML = '<option value="">همه دسته‌ها...</option>' + c + '<option value="FORM">فرمول‌ها</option>';
+    filterEl.innerHTML = '<option value="">همه دسته‌ها...</option>' + c + '<option value="FORM">فرمول‌ها (Sub-Assembly)</option>';
     filterEl.value = current;
 }
 
@@ -228,7 +194,7 @@ export function updateCompSelect() {
     let h = '<option value="">انتخاب کالا...</option>';
     
     if(f === 'FORM') {
-        h += `<optgroup label="فرمول‌ها">` + 
+        h += `<optgroup label="فرمول‌های دیگر">` + 
              state.formulas.filter(x => x.$id !== state.activeFormulaId)
              .map(x => `<option value="FORM:${x.$id}">🔗 ${x.name}</option>`).join('') + 
              `</optgroup>`;
@@ -236,15 +202,21 @@ export function updateCompSelect() {
         state.categories.forEach(cat => {
             if(f && f !== 'FORM' && f !== cat.$id) return;
             const m = state.materials.filter(x => x.category_id === cat.$id);
-            if(m.length) h += `<optgroup label="${cat.name}">` + m.map(x => `<option value="MAT:${x.$id}">${x.name}</option>`).join('') + `</optgroup>`;
+            if(m.length) {
+                h += `<optgroup label="${cat.name}">` + 
+                     m.map(x => `<option value="MAT:${x.$id}">${x.name} (${x.consumption_unit})</option>`).join('') + 
+                     `</optgroup>`;
+            }
         });
+        // کالا های بدون دسته
         const o = state.materials.filter(x => !x.category_id);
-        if((!f || f === 'null') && o.length) h += `<optgroup label="سایر">` + o.map(x => `<option value="MAT:${x.$id}">${x.name}</option>`).join('') + `</optgroup>`;
+        if((!f || f === 'null') && o.length) h += `<optgroup label="سایر">` + o.map(x => `<option value="MAT:${x.$id}">${x.name} (${x.consumption_unit})</option>`).join('') + `</optgroup>`;
     }
     sel.innerHTML = h;
 }
 
-// --- عملیات (Create, Add, Remove, Rename, Delete) ---
+// --- عملیات دیتابیس ---
+
 async function createFormula(cb) {
     const name = document.getElementById('new-formula-name').value;
     if(!name) return;
@@ -252,10 +224,9 @@ async function createFormula(cb) {
         const res = await api.create(APPWRITE_CONFIG.COLS.FORMS, {
             name, components: '[]', labor: 0.0, overhead: 0.0, profit: 0.0, is_public: false
         });
-        state.formulas.unshift(res);
         closeModal('new-formula-modal');
         document.getElementById('new-formula-name').value = '';
-        selectFormula(res.$id, cb);
+        cb(); // رفرش کامل برای دریافت فرمول جدید
     } catch(e) { alert(e.message); }
 }
 
@@ -263,67 +234,89 @@ async function addComp(refreshCb) {
     if(!state.activeFormulaId) return;
     const val = document.getElementById('comp-select').value;
     const qty = parseFloat(document.getElementById('comp-qty').value);
-    if(!val || !qty) { alert('انتخاب ناقص'); return; }
+    
+    if(!val || !qty) { alert('لطفا کالا و تعداد را وارد کنید'); return; }
 
     const [typePrefix, id] = val.split(':');
     const type = typePrefix === 'MAT' ? 'mat' : 'form';
-    if(type === 'form' && id === state.activeFormulaId) { alert('خطا: لوپ'); return; }
 
     const f = state.formulas.find(x => x.$id === state.activeFormulaId);
     let comps = JSON.parse(f.components || '[]');
+    
+    // بررسی تکراری بودن (اگر هست اضافه کن، اگر نه سطر جدید)
     const exist = comps.find(c => c.id === id && c.type === type);
     if(exist) exist.qty += qty; else comps.push({id, type, qty});
     
     try {
         await api.update(APPWRITE_CONFIG.COLS.FORMS, state.activeFormulaId, { components: JSON.stringify(comps) });
         document.getElementById('comp-qty').value = '';
-        // رفرش سریع با داده جدید
-        const updatedF = await api.get(APPWRITE_CONFIG.COLS.FORMS, state.activeFormulaId);
-        // آپدیت استیت محلی
-        const idx = state.formulas.findIndex(x => x.$id === state.activeFormulaId);
-        if(idx !== -1) state.formulas[idx] = updatedF;
         
-        renderFormulaDetail(updatedF, refreshCb);
+        // بروزرسانی لوکال برای سرعت بیشتر
+        f.components = JSON.stringify(comps);
+        renderFormulaDetail(f, refreshCb);
     } catch(e) { alert(e.message); }
 }
 
-async function removeComp(fid, idx, localRefresh) {
-    const f = state.formulas.find(x => x.$id === fid);
+async function removeComp(f, idx, cb) {
     let comps = JSON.parse(f.components || '[]');
     comps.splice(idx, 1);
     try {
-        await api.update(APPWRITE_CONFIG.COLS.FORMS, fid, { components: JSON.stringify(comps) });
-        localRefresh();
+        await api.update(APPWRITE_CONFIG.COLS.FORMS, f.$id, { components: JSON.stringify(comps) });
+        f.components = JSON.stringify(comps);
+        renderFormulaDetail(f, cb);
     } catch(e) { alert(e.message); }
 }
 
-async function updateCost(key, val, cb) {
+async function updateCostVariables(key, val, cb) {
     if(!state.activeFormulaId) return;
+    const numVal = parseLocaleNumber(val);
     try {
-        await api.update(APPWRITE_CONFIG.COLS.FORMS, state.activeFormulaId, { [key]: parseFloat(val.replace(/,/g,'')) || 0 });
-        const updatedF = await api.get(APPWRITE_CONFIG.COLS.FORMS, state.activeFormulaId);
-        const idx = state.formulas.findIndex(x => x.$id === state.activeFormulaId);
-        if(idx !== -1) state.formulas[idx] = updatedF;
-        renderFormulaDetail(updatedF, cb);
+        await api.update(APPWRITE_CONFIG.COLS.FORMS, state.activeFormulaId, { [key]: numVal });
+        // آپدیت لوکال
+        const f = state.formulas.find(x => x.$id === state.activeFormulaId);
+        if(f) { f[key] = numVal; renderFormulaDetail(f, cb); }
     } catch(e) { console.error(e); }
+}
+
+// قابلیت جدید: کپی فرمول
+async function duplicateFormula(cb) {
+    if(!state.activeFormulaId) return;
+    const f = state.formulas.find(x => x.$id === state.activeFormulaId);
+    if(!confirm(`از فرمول "${f.name}" یک کپی گرفته شود؟`)) return;
+    
+    try {
+        const newData = {
+            name: "کپی " + f.name,
+            components: f.components,
+            labor: f.labor,
+            overhead: f.overhead,
+            profit: f.profit,
+            is_public: false
+        };
+        const res = await api.create(APPWRITE_CONFIG.COLS.FORMS, newData);
+        alert('کپی ایجاد شد');
+        cb(); // رفرش برای دیدن آیتم جدید در لیست
+    } catch(e) { alert(e.message); }
 }
 
 async function renameFormula(cb) {
     const cur = document.getElementById('active-formula-name').innerText;
-    const n = prompt('نام جدید:', cur);
+    const n = prompt('نام جدید محصول:', cur);
     if(n && n !== cur) {
         try { 
             await api.update(APPWRITE_CONFIG.COLS.FORMS, state.activeFormulaId, { name: n }); 
-            cb(); // رفرش کلی برای تغییر در لیست سمت راست
+            cb();
         } catch(e) { alert(e.message); }
     }
 }
 
 async function deleteFormula(cb) {
-    if(confirm('حذف شود؟')) {
+    if(confirm('این محصول حذف شود؟ قابل برگشت نیست.')) {
         try {
             await api.delete(APPWRITE_CONFIG.COLS.FORMS, state.activeFormulaId);
             state.activeFormulaId = null;
+            document.getElementById('formula-detail-view').classList.add('hidden');
+            document.getElementById('formula-detail-empty').classList.remove('hidden');
             cb();
         } catch(e) { alert(e.message); }
     }
