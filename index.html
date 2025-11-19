@@ -139,7 +139,7 @@
                             
                             <div class="grid grid-cols-2 gap-2 items-end">
                                 <div>
-                                    <label class="text-[10px] text-slate-400 mr-1">ضریب تبدیل</label>
+                                    <label class="text-[10px] text-slate-400 mr-1">ضریب تبدیل (داخلی)</label>
                                     <input type="number" step="any" id="mat-conversion-rate" class="input-field text-xs text-center" placeholder="1" value="1">
                                 </div>
                                 <div>
@@ -148,13 +148,24 @@
                                 </div>
                             </div>
                             <p class="text-[9px] text-slate-400 leading-3 pr-1">
-                                * مثال ضریب: اگر خرید "شاخه" و مصرف "متر" است و هر شاخه ۶ متر می‌باشد، ضریب را ۶ وارد کنید.
+                                * ضریب تبدیل داخلی: مثلاً اگر خرید "شاخه" است و مصرف "متر"، و هر شاخه ۶ متر است، ضریب = ۶.
                             </p>
 
-                            <!-- Scraper -->
-                            <div class="pt-2 border-t border-dashed">
-                                <label class="text-[10px] text-slate-400 mr-1">لینک منبع قیمت (Scraper)</label>
-                                <input type="url" id="mat-scraper-url" class="input-field text-xs text-left ltr" placeholder="https://site.com/product/...">
+                            <!-- Scraper Section (UPDATED) -->
+                            <div class="pt-2 border-t border-dashed bg-slate-50 p-2 rounded mt-2">
+                                <div class="flex gap-2 mb-2">
+                                    <div class="w-2/3">
+                                        <label class="text-[10px] text-slate-400 mr-1">لینک منبع قیمت (سایت)</label>
+                                        <input type="url" id="mat-scraper-url" class="input-field text-xs text-left ltr" placeholder="https://...">
+                                    </div>
+                                    <div class="w-1/3">
+                                        <label class="text-[10px] text-slate-400 mr-1">وزن/ضریب محاسبه</label>
+                                        <input type="number" step="any" id="mat-scraper-factor" class="input-field text-xs text-center font-bold text-blue-600" placeholder="1">
+                                    </div>
+                                </div>
+                                <p class="text-[9px] text-slate-400 leading-3">
+                                    * اگر قیمت سایت "کیلوگرم" است و واحد شما "شاخه ۱۵ کیلویی" است، در کادر کوچک عدد <b>15</b> را وارد کنید.
+                                </p>
                             </div>
 
                             <div class="flex gap-2 pt-2">
