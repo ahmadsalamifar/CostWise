@@ -64,8 +64,9 @@ async function createFormula() {
     const name = document.getElementById('new-formula-name').value;
     if(!name) return;
     try {
+        // اصلاح: تغییر components_json به components
         const res = await api.create(APPWRITE_CONFIG.COLS.FORMS, {
-            name, components_json: '[]', labor: 0.0, overhead: 0.0, profit: 0.0, is_public: false
+            name, components: '[]', labor: 0.0, overhead: 0.0, profit: 0.0, is_public: false
         });
         state.formulas.unshift(res);
         closeModal('new-formula-modal');
@@ -152,7 +153,8 @@ function selectFormula(id) {
 
 function renderFormulaDetail(f) {
     const calc = calculateCost(f);
-    const comps = JSON.parse(f.components_json || '[]');
+    // اصلاح: تغییر components_json به components
+    const comps = JSON.parse(f.components || f.components_json || '[]');
     
     document.getElementById('active-formula-name').innerText = f.name;
     document.getElementById('inp-labor').value = formatPrice(f.labor);
@@ -200,7 +202,8 @@ function renderFormulaDetail(f) {
 function calculateCost(f) {
     if(!f) return {matCost:0, sub:0, profit:0, final:0};
     let matCost=0; 
-    const comps = JSON.parse(f.components_json || '[]');
+    // اصلاح: تغییر components_json به components
+    const comps = JSON.parse(f.components || f.components_json || '[]');
     comps.forEach(c => {
         if(c.type==='mat') {
             const m = state.materials.find(x => x.$id === c.id);
@@ -279,8 +282,17 @@ function switchTab(id) {
     document.getElementById('btn-tab-'+id)?.classList.add('active');
 }
 
-function openModal(id) { const el = document.getElementById(id); el.style.display = 'flex'; }
-function closeModal(id) { const el = document.getElementById(id); el.style.display = 'none'; }
+// === اصلاح مهم مودال ===
+function openModal(id) { 
+    const el = document.getElementById(id); 
+    el.classList.remove('hidden'); // حذف کلاسی که !important دارد
+    el.style.display = 'flex'; 
+}
+function closeModal(id) { 
+    const el = document.getElementById(id); 
+    el.classList.add('hidden');    // اضافه کردن مجدد
+    el.style.display = 'none'; 
+}
 
 function updateDropdowns() {
     const c = state.categories.map(x => `<option value="${x.$id}">${x.name}</option>`).join('');
@@ -323,14 +335,16 @@ async function addComp() {
     if(type === 'form' && id === state.activeFormulaId) { alert('خطا: لوپ!'); return; }
     
     const f = state.formulas.find(x => x.$id === state.activeFormulaId);
-    let comps = JSON.parse(f.components_json || '[]');
+    // اصلاح: خواندن از components
+    let comps = JSON.parse(f.components || f.components_json || '[]');
     
     // Check exist
     const exist = comps.find(c => c.id === id && c.type === type);
     if(exist) exist.qty += qty; else comps.push({id, type, qty});
     
     try {
-        await api.update(APPWRITE_CONFIG.COLS.FORMS, state.activeFormulaId, { components_json: JSON.stringify(comps) });
+        // اصلاح: نوشتن در components
+        await api.update(APPWRITE_CONFIG.COLS.FORMS, state.activeFormulaId, { components: JSON.stringify(comps) });
         document.getElementById('comp-qty').value = '';
         await fetchAllData(); updateUI();
     } catch(e) { alert(e.message); }
@@ -338,10 +352,12 @@ async function addComp() {
 
 async function removeComp(fid, idx) {
     const f = state.formulas.find(x => x.$id === fid);
-    let comps = JSON.parse(f.components_json || '[]');
+    // اصلاح: خواندن از components
+    let comps = JSON.parse(f.components || f.components_json || '[]');
     comps.splice(idx, 1);
     try {
-        await api.update(APPWRITE_CONFIG.COLS.FORMS, fid, { components_json: JSON.stringify(comps) });
+        // اصلاح: نوشتن در components
+        await api.update(APPWRITE_CONFIG.COLS.FORMS, fid, { components: JSON.stringify(comps) });
         await fetchAllData(); updateUI();
     } catch(e) { alert(e.message); }
 }
@@ -407,8 +423,9 @@ async function copyStore(id) {
     if(!confirm('کپی شود؟')) return;
     const t = state.publicFormulas.find(x => x.$id === id);
     try {
+        // اصلاح: کپی کردن فیلد components
         await api.create(APPWRITE_CONFIG.COLS.FORMS, {
-            name: t.name + ' (کپی)', components_json: t.components_json, labor: t.labor, overhead: t.overhead, profit: t.profit, is_public: false
+            name: t.name + ' (کپی)', components: t.components || t.components_json, labor: t.labor, overhead: t.overhead, profit: t.profit, is_public: false
         });
         alert('انجام شد'); await fetchAllData(); updateUI(); switchTab('formulas');
     } catch(e) { alert(e.message); }
@@ -419,7 +436,8 @@ function printFormula() {
     if(!state.activeFormulaId) return;
     const f = state.formulas.find(x => x.$id === state.activeFormulaId);
     const calc = calculateCost(f);
-    const comps = JSON.parse(f.components_json || '[]');
+    // اصلاح: خواندن از components
+    const comps = JSON.parse(f.components || f.components_json || '[]');
     
     document.getElementById('print-title').innerText = f.name;
     document.getElementById('print-id').innerText = f.$id.substring(0,6).toUpperCase();
