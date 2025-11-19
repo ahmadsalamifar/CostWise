@@ -3,6 +3,16 @@ import { state, APPWRITE_CONFIG } from './config.js';
 import { formatPrice, parseLocaleNumber, getDateBadge } from './utils.js';
 
 export function setupMaterials(refreshCallback) {
+    // --- کد جدید: عملکرد دکمه راهنما ---
+    const guideBtn = document.getElementById('btn-toggle-guide');
+    if(guideBtn) {
+        guideBtn.onclick = () => {
+            const guide = document.getElementById('material-guide');
+            guide.classList.toggle('hidden');
+        };
+    }
+    // ----------------------------------
+
     document.getElementById('material-form').onsubmit = (e) => { 
         e.preventDefault(); 
         saveMaterial(refreshCallback); 
@@ -12,7 +22,6 @@ export function setupMaterials(refreshCallback) {
     document.getElementById('search-materials').oninput = (e) => renderMaterials(e.target.value);
     document.getElementById('sort-materials').onchange = () => renderMaterials();
     
-    // دکمه اجرای اسکرپر
     const scraperBtn = document.getElementById('btn-scraper-trigger');
     if(scraperBtn) scraperBtn.onclick = async () => {
         if(!confirm('قیمت‌ها از سایت‌های مرجع بروزرسانی شوند؟')) return;
@@ -38,8 +47,6 @@ async function saveMaterial(cb) {
         conversion_rate: parseFloat(document.getElementById('mat-conversion-rate').value) || 1,
         price: parseLocaleNumber(document.getElementById('mat-price').value),
         scraper_url: document.getElementById('mat-scraper-url').value || null,
-        
-        // --- فیلد جدید اینجاست ---
         scraper_factor: parseFloat(document.getElementById('mat-scraper-factor').value) || 1
     };
 
@@ -53,7 +60,6 @@ async function saveMaterial(cb) {
 }
 
 export function renderMaterials(filter='') {
-    // (کد رندر لیست مواد - همان قبلی با کمی تغییر برای نمایش ضریب)
     const sort = document.getElementById('sort-materials').value;
     let list = state.materials.filter(m => m.name.includes(filter) || (m.display_name && m.display_name.includes(filter)));
     
@@ -69,7 +75,6 @@ export function renderMaterials(filter='') {
     el.innerHTML = list.map(m => {
         const cat = state.categories.find(c => c.$id === m.category_id)?.name || '-';
         const dateBadge = getDateBadge(m.$updatedAt);
-        // نمایش ضریب اسکرپر اگر وجود داشته باشد
         const scraperInfo = m.scraper_url ? 
             `<span class="text-[9px] text-blue-500 bg-blue-50 px-1 rounded border border-blue-100" title="ضریب محاسبه: ${m.scraper_factor || 1}">Link × ${m.scraper_factor || 1}</span>` : '';
 
@@ -122,7 +127,7 @@ function editMat(id) {
     document.getElementById('mat-price').value = formatPrice(m.price);
     document.getElementById('mat-scraper-url').value = m.scraper_url || '';
     
-    // --- لود کردن مقدار فیلد جدید ---
+    // لود کردن مقدار فیلد جدید
     document.getElementById('mat-scraper-factor').value = m.scraper_factor || 1;
     
     const btn = document.getElementById('mat-submit-btn');
@@ -136,9 +141,12 @@ function resetMatForm() {
     document.getElementById('material-form').reset();
     document.getElementById('mat-id').value = '';
     document.getElementById('mat-conversion-rate').value = 1;
-    document.getElementById('mat-scraper-factor').value = 1; // ریست کردن فیلد جدید
+    document.getElementById('mat-scraper-factor').value = 1;
     
     const btn = document.getElementById('mat-submit-btn');
     btn.innerText = 'ذخیره کالا';
     document.getElementById('mat-cancel-btn').classList.add('hidden');
+    
+    // بستن راهنما موقع ریست
+    document.getElementById('material-guide').classList.add('hidden');
 }
