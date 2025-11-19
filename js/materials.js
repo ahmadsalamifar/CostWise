@@ -44,16 +44,17 @@ function renderRelationsUI() {
         // ظاهر جدید: ساده، فلت، رنگ‌های خنثی
         row.className = 'flex items-center gap-2 bg-white p-2 rounded border border-slate-200 mb-1';
         
+        // کادرها بزرگتر شدند (w-16 و w-28) تا متن‌ها کامل دیده شوند
         row.innerHTML = `
-            <input type="number" step="any" class="input-field h-8 w-14 text-center font-bold text-slate-700 text-xs border-slate-200 bg-slate-50 rel-qty-unit" value="${rel.qtyUnit || 1}">
+            <input type="number" step="any" class="input-field h-9 w-16 text-center font-bold text-slate-700 text-xs border-slate-200 bg-slate-50 rel-qty-unit" value="${rel.qtyUnit || 1}">
             
-            <select class="input-field h-8 w-24 px-1 text-xs rel-name-select border-slate-200 bg-white text-slate-700">${options}</select>
+            <select class="input-field h-9 w-28 px-1 text-xs rel-name-select border-slate-200 bg-white text-slate-700">${options}</select>
             
             <span class="text-slate-400 text-[10px]">=</span>
             
-            <input type="number" step="any" class="input-field h-8 w-14 text-center font-bold text-slate-500 text-xs border-slate-200 bg-slate-50 rel-qty-base" value="${rel.qtyBase || 1}">
+            <input type="number" step="any" class="input-field h-9 w-16 text-center font-bold text-slate-500 text-xs border-slate-200 bg-slate-50 rel-qty-base" value="${rel.qtyBase || 1}">
             
-            <span class="text-slate-400 text-[10px] w-12 truncate base-unit-label">${baseUnitName}</span>
+            <span class="text-slate-400 text-[10px] w-16 truncate base-unit-label">${baseUnitName}</span>
             
             <button type="button" class="text-slate-300 hover:text-rose-500 px-1 text-sm mr-auto transition-colors btn-remove-rel">🗑</button>
         `;
@@ -168,6 +169,14 @@ export function renderMaterials(filter='') {
     
     // --- منطق مرتب‌سازی کامل ---
     list.sort((a,b) => {
+        if(sort === 'category') {
+            // دریافت نام دسته‌بندی برای هر کالا
+            const getCatName = (id) => {
+                const c = state.categories.find(cat => cat.$id === id);
+                return c ? c.name : 'zzz'; // zzz برای اینکه بدون دسته‌ها آخر بروند
+            };
+            return getCatName(a.category_id).localeCompare(getCatName(b.category_id));
+        }
         if(sort === 'price_desc') return b.price - a.price;
         if(sort === 'price_asc') return a.price - b.price;
         if(sort === 'name_asc') return a.name.localeCompare(b.name);
@@ -230,8 +239,11 @@ function editMat(id) {
     
     try {
         const rels = JSON.parse(m.unit_relations || '{}');
+        
         const baseSelect = document.getElementById('mat-base-unit-select');
-        if(state.units.length === 0) baseSelect.innerHTML = `<option value="${rels.base}">${rels.base}</option>`;
+        if(state.units.length === 0) {
+             baseSelect.innerHTML = `<option value="${rels.base || 'Unit'}">${rels.base || 'Unit'}</option>`;
+        }
         if(rels.base) baseSelect.value = rels.base;
 
         currentUnitRelations = (rels.others || []).map(r => ({
@@ -240,16 +252,31 @@ function editMat(id) {
         renderRelationsUI();
         updateUnitDropdowns();
         
-        if(rels.price_unit) document.getElementById('mat-price-unit').value = rels.price_unit;
-        if(rels.scraper_unit) document.getElementById('mat-scraper-unit').value = rels.scraper_unit;
+        // انتخاب مقادیر ذخیره شده
+        if(rels.price_unit) {
+             document.getElementById('mat-price-unit').value = rels.price_unit;
+        } else if(m.purchase_unit) {
+             document.getElementById('mat-price-unit').value = m.purchase_unit;
+        }
 
-    } catch(e) { currentUnitRelations = []; renderRelationsUI(); }
+        // انتخاب واحد اسکرپر
+        if(rels.scraper_unit) {
+             document.getElementById('mat-scraper-unit').value = rels.scraper_unit;
+        }
+        
+        calculateScraperFactor(); 
+
+    } catch(e) {
+        console.error("Error parsing unit relations", e);
+        currentUnitRelations = [];
+        renderRelationsUI();
+    }
     
     document.getElementById('mat-price').value = formatPrice(m.price);
     document.getElementById('mat-scraper-url').value = m.scraper_url || '';
     
     const btn = document.getElementById('mat-submit-btn');
-    if(btn) btn.innerText = 'ذخیره تغییرات';
+    btn.innerText = 'ویرایش';
     document.getElementById('mat-cancel-btn').classList.remove('hidden');
     
     if(window.innerWidth < 768) document.getElementById('tab-materials').scrollIntoView({behavior:'smooth'});
@@ -261,7 +288,8 @@ function resetMatForm() {
     currentUnitRelations = [];
     renderRelationsUI();
     updateUnitDropdowns();
+    
     const btn = document.getElementById('mat-submit-btn');
-    if(btn) btn.innerText = 'ذخیره کالا';
+    btn.innerText = 'ذخیره کالا';
     document.getElementById('mat-cancel-btn').classList.add('hidden');
 }
