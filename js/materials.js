@@ -20,14 +20,14 @@ export function setupMaterials(refreshCallback) {
     
     const scraperBtn = document.getElementById('btn-scraper-trigger');
     if(scraperBtn) scraperBtn.onclick = async () => {
-        if(!confirm('بروزرسانی قیمت‌ها؟')) return;
+        if(!confirm('بروزرسانی قیمت‌ها از سایت؟')) return;
         scraperBtn.innerText = '...';
         try { await api.runScraper(); refreshCallback(); } 
         catch(e) { alert(e.message); } finally { scraperBtn.innerText = '🤖 بروزرسانی قیمت‌ها'; }
     };
 }
 
-// --- UI مدیریت واحدها (بازطراحی شده برای ظاهر تمیزتر) ---
+// --- UI مدیریت واحدها (اصلاح شده: سایز بزرگتر) ---
 
 function renderRelationsUI() {
     const container = document.getElementById('unit-relations-container');
@@ -41,22 +41,21 @@ function renderRelationsUI() {
         const options = state.units.map(u => `<option value="${u.name}" ${u.name === rel.name ? 'selected' : ''}>${u.name}</option>`).join('');
         
         const row = document.createElement('div');
-        // ظاهر جدید: ساده، فلت، رنگ‌های خنثی
-        row.className = 'flex items-center gap-2 bg-white p-2 rounded border border-slate-200 mb-1';
+        // ظاهر جدید: کادرهای بزرگتر و خوانا
+        row.className = 'flex items-center gap-2 bg-white p-2 rounded border border-slate-200 mb-2 shadow-sm';
         
-        // کادرها بزرگتر شدند (w-16 و w-28) تا متن‌ها کامل دیده شوند
         row.innerHTML = `
-            <input type="number" step="any" class="input-field h-9 w-16 text-center font-bold text-slate-700 text-xs border-slate-200 bg-slate-50 rel-qty-unit" value="${rel.qtyUnit || 1}">
+            <input type="number" step="any" class="input-field h-9 w-16 text-center font-bold text-slate-700 text-xs border-slate-200 bg-slate-50 rel-qty-unit" value="${rel.qtyUnit || 1}" placeholder="#">
             
-            <select class="input-field h-9 w-28 px-1 text-xs rel-name-select border-slate-200 bg-white text-slate-700">${options}</select>
+            <select class="input-field h-9 w-28 px-2 text-xs rel-name-select border-slate-200 bg-white text-slate-700">${options}</select>
             
-            <span class="text-slate-400 text-[10px]">=</span>
+            <span class="text-slate-400 text-lg">=</span>
             
-            <input type="number" step="any" class="input-field h-9 w-16 text-center font-bold text-slate-500 text-xs border-slate-200 bg-slate-50 rel-qty-base" value="${rel.qtyBase || 1}">
+            <input type="number" step="any" class="input-field h-9 w-16 text-center font-bold text-slate-500 text-xs border-slate-200 bg-slate-50 rel-qty-base" value="${rel.qtyBase || 1}" placeholder="#">
             
-            <span class="text-slate-400 text-[10px] w-16 truncate base-unit-label">${baseUnitName}</span>
+            <span class="text-slate-500 text-xs w-16 truncate base-unit-label font-bold">${baseUnitName}</span>
             
-            <button type="button" class="text-slate-300 hover:text-rose-500 px-1 text-sm mr-auto transition-colors btn-remove-rel">🗑</button>
+            <button type="button" class="text-slate-300 hover:text-rose-500 px-2 text-lg mr-auto transition-colors btn-remove-rel">×</button>
         `;
         
         const updateRow = () => {
@@ -120,7 +119,6 @@ function updateUnitDropdowns() {
 }
 
 function calculateScraperFactor() {
-    // محاسبات سمت کلاینت برای اسکرپر فقط نمایشی است چون بک‌اند کار اصلی را می‌کند
     const el = document.getElementById('mat-scraper-factor');
     if(el) el.value = 1; 
 }
@@ -136,10 +134,14 @@ async function saveMaterial(cb) {
         category_id: document.getElementById('mat-category').value || null,
         price: parseLocaleNumber(document.getElementById('mat-price').value),
         scraper_url: document.getElementById('mat-scraper-url').value || null,
-        // مقادیر پیش‌فرض برای فیلدهای منسوخ شده (جهت سازگاری با دیتابیس)
+        scraper_anchor: document.getElementById('mat-scraper-anchor').value || null, // فیلد جدید
+        
+        // مقادیر پیش‌فرض برای فیلدهای قدیمی دیتابیس
         purchase_unit: document.getElementById('mat-price-unit').value, 
         consumption_unit: document.getElementById('mat-price-unit').value, 
         scraper_factor: 1,
+        
+        // ذخیره کامل ساختار واحدها
         unit_relations: JSON.stringify({
             base: document.getElementById('mat-base-unit-select').value,
             others: currentUnitRelations,
@@ -169,20 +171,21 @@ export function renderMaterials(filter='') {
     
     // --- منطق مرتب‌سازی کامل ---
     list.sort((a,b) => {
+        // مرتب‌سازی بر اساس دسته‌بندی
         if(sort === 'category') {
-            // دریافت نام دسته‌بندی برای هر کالا
             const getCatName = (id) => {
                 const c = state.categories.find(cat => cat.$id === id);
-                return c ? c.name : 'zzz'; // zzz برای اینکه بدون دسته‌ها آخر بروند
+                return c ? c.name : 'zzz'; // موارد بدون دسته بروند آخر
             };
             return getCatName(a.category_id).localeCompare(getCatName(b.category_id));
         }
+        // سایر مرتب‌سازی‌ها
         if(sort === 'price_desc') return b.price - a.price;
         if(sort === 'price_asc') return a.price - b.price;
         if(sort === 'name_asc') return a.name.localeCompare(b.name);
         if(sort === 'update_asc') return new Date(a.$updatedAt) - new Date(b.$updatedAt);
-        // پیش‌فرض: جدیدترین اول (update_desc)
-        return new Date(b.$updatedAt) - new Date(a.$updatedAt);
+        
+        return new Date(b.$updatedAt) - new Date(a.$updatedAt); // پیش‌فرض: جدیدترین
     });
     
     const el = document.getElementById('materials-container');
@@ -239,7 +242,6 @@ function editMat(id) {
     
     try {
         const rels = JSON.parse(m.unit_relations || '{}');
-        
         const baseSelect = document.getElementById('mat-base-unit-select');
         if(state.units.length === 0) {
              baseSelect.innerHTML = `<option value="${rels.base || 'Unit'}">${rels.base || 'Unit'}</option>`;
@@ -274,9 +276,11 @@ function editMat(id) {
     
     document.getElementById('mat-price').value = formatPrice(m.price);
     document.getElementById('mat-scraper-url').value = m.scraper_url || '';
+    // بازگردانی انکر تکست
+    document.getElementById('mat-scraper-anchor').value = m.scraper_anchor || '';
     
     const btn = document.getElementById('mat-submit-btn');
-    btn.innerText = 'ویرایش';
+    if(btn) btn.innerText = 'ذخیره تغییرات';
     document.getElementById('mat-cancel-btn').classList.remove('hidden');
     
     if(window.innerWidth < 768) document.getElementById('tab-materials').scrollIntoView({behavior:'smooth'});
@@ -290,6 +294,6 @@ function resetMatForm() {
     updateUnitDropdowns();
     
     const btn = document.getElementById('mat-submit-btn');
-    btn.innerText = 'ذخیره کالا';
+    if(btn) btn.innerText = 'ذخیره کالا';
     document.getElementById('mat-cancel-btn').classList.add('hidden');
 }
