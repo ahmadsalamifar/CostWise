@@ -2,29 +2,19 @@ import { api } from './api.js';
 import { state, APPWRITE_CONFIG } from './config.js';
 import { formatPrice, formatDate, openModal, closeModal } from './utils.js';
 
-// اتصال رویدادها
 export function setupFormulas(refreshCallback) {
     document.getElementById('btn-open-new-formula').onclick = () => openModal('new-formula-modal');
     document.getElementById('btn-create-formula').onclick = () => createFormula(refreshCallback);
     document.getElementById('btn-cancel-formula').onclick = () => closeModal('new-formula-modal');
-    
     document.getElementById('search-formulas').oninput = (e) => renderFormulaList(e.target.value);
-    
-    document.getElementById('form-add-comp').onsubmit = (e) => { 
-        e.preventDefault(); 
-        addComp(refreshCallback); 
-    };
-
+    document.getElementById('form-add-comp').onsubmit = (e) => { e.preventDefault(); addComp(refreshCallback); };
     document.getElementById('inp-labor').onchange = (e) => updateCost('labor', e.target.value, refreshCallback);
     document.getElementById('inp-overhead').onchange = (e) => updateCost('overhead', e.target.value, refreshCallback);
     document.getElementById('inp-profit').onchange = (e) => updateCost('profit', e.target.value, refreshCallback);
-    
     document.getElementById('active-formula-name').onclick = () => renameFormula(refreshCallback);
     document.getElementById('btn-delete-formula').onclick = () => deleteFormula(refreshCallback);
     document.getElementById('comp-filter').onchange = updateCompSelect;
 }
-
-// --- Logic ---
 
 async function createFormula(cb) {
     const name = document.getElementById('new-formula-name').value;
@@ -66,7 +56,6 @@ export function selectFormula(id) {
     
     const f = state.formulas.find(x => x.$id === id);
     if(f) renderFormulaDetail(f);
-
     if(window.innerWidth < 1024) document.getElementById('detail-panel').scrollIntoView({behavior: 'smooth'});
 }
 
@@ -78,36 +67,31 @@ export function renderFormulaDetail(f) {
 
     const calc = calculateCost(f);
     document.getElementById('lbl-final-price').innerText = formatPrice(calc.final);
-    
     updateCompSelect();
     
     const comps = JSON.parse(f.components || '[]');
     const listEl = document.getElementById('formula-comps-list');
     
-    listEl.innerHTML = comps.length === 0 
-        ? '<div class="p-8 text-center text-slate-400 text-xs">خالی</div>' 
-        : comps.map((c, idx) => {
-            let name='-', unit='-', price=0, total=0;
-            if(c.type==='mat') {
-                const m = state.materials.find(x=>x.$id===c.id);
-                if(m) { name=m.name; unit=m.unit; price=m.price; } else { name='(حذف شده)'; }
-            } else {
-                const sub = state.formulas.find(x=>x.$id===c.id);
-                if(sub) { name=`🔗 ${sub.name}`; unit='عدد'; price=calculateCost(sub).final; } else { name='(حذف شده)'; }
-            }
-            total = price * c.qty;
-            return `
-            <div class="flex justify-between items-center p-3 text-sm border-b border-slate-50">
-                <div><div class="font-bold text-slate-700 text-xs">${name}</div><div class="text-[10px] text-slate-400 mt-0.5">${c.qty} ${unit} × ${formatPrice(price)}</div></div>
-                <div class="flex items-center gap-2"><span class="font-mono font-bold text-slate-600 text-xs">${formatPrice(total)}</span><button class="text-rose-400 px-2 btn-del-comp" data-idx="${idx}">×</button></div>
-            </div>`;
-        }).join('');
+    listEl.innerHTML = comps.map((c, idx) => {
+        let name='-', unit='-', price=0, total=0;
+        if(c.type==='mat') {
+            const m = state.materials.find(x=>x.$id===c.id);
+            if(m) { name=m.name; unit=m.unit; price=m.price; } else { name='(حذف شده)'; }
+        } else {
+            const sub = state.formulas.find(x=>x.$id===c.id);
+            if(sub) { name=`🔗 ${sub.name}`; unit='عدد'; price=calculateCost(sub).final; } else { name='(حذف شده)'; }
+        }
+        total = price * c.qty;
+        return `
+        <div class="flex justify-between items-center p-3 text-sm border-b border-slate-50">
+            <div><div class="font-bold text-slate-700 text-xs">${name}</div><div class="text-[10px] text-slate-400 mt-0.5">${c.qty} ${unit} × ${formatPrice(price)}</div></div>
+            <div class="flex items-center gap-2"><span class="font-mono font-bold text-slate-600 text-xs">${formatPrice(total)}</span><button class="text-rose-400 px-2 btn-del-comp" data-idx="${idx}">×</button></div>
+        </div>`;
+    }).join('');
 
     listEl.querySelectorAll('.btn-del-comp').forEach(btn => {
         btn.onclick = () => removeComp(f.$id, parseInt(btn.dataset.idx), () => { 
-            // رفرش داخلی
              api.get(APPWRITE_CONFIG.COLS.FORMS, f.$id).then(updatedF => {
-                 // آپدیت استیت
                  const index = state.formulas.findIndex(i => i.$id === f.$id);
                  if(index !== -1) state.formulas[index] = updatedF;
                  renderFormulaDetail(updatedF);
@@ -134,22 +118,18 @@ export function calculateCost(f) {
     return {matCost, sub, profit, final: sub+profit};
 }
 
-// --- Actions ---
-
 async function addComp(cb) {
     if(!state.activeFormulaId) return;
     const val = document.getElementById('comp-select').value;
     const qty = parseFloat(document.getElementById('comp-qty').value);
-    if(!val || !qty) { alert('مقادیر را وارد کنید'); return; }
+    if(!val || !qty) return;
 
     const [typePrefix, id] = val.split(':');
     const type = typePrefix === 'MAT' ? 'mat' : 'form';
-    
     if(type === 'form' && id === state.activeFormulaId) { alert('خطا: لوپ!'); return; }
     
     const f = state.formulas.find(x => x.$id === state.activeFormulaId);
     let comps = JSON.parse(f.components || '[]');
-    
     const exist = comps.find(c => c.id === id && c.type === type);
     if(exist) exist.qty += qty; else comps.push({id, type, qty});
     
@@ -200,11 +180,9 @@ export function updateCompSelect() {
     const sel = document.getElementById('comp-select');
     const f = document.getElementById('comp-filter').value;
     if(!sel) return;
-    
     let h = '<option value="">انتخاب...</option>';
     if(f === 'FORM') {
-        h += state.formulas.filter(x => x.$id !== state.activeFormulaId)
-            .map(x => `<option value="FORM:${x.$id}">🔗 ${x.name}</option>`).join('');
+        h += state.formulas.filter(x => x.$id !== state.activeFormulaId).map(x => `<option value="FORM:${x.$id}">🔗 ${x.name}</option>`).join('');
     } else {
         state.categories.forEach(cat => {
             if(f && f !== cat.$id) return;

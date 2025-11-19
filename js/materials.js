@@ -1,6 +1,6 @@
 import { api } from './api.js';
 import { state, APPWRITE_CONFIG } from './config.js';
-import { formatPrice, switchTab } from './utils.js';
+import { formatPrice } from './utils.js';
 
 export function setupMaterials(refreshCallback) {
     document.getElementById('material-form').onsubmit = (e) => { e.preventDefault(); saveMaterial(refreshCallback); };
@@ -50,18 +50,12 @@ export function renderMaterials(filter='') {
     }).join('');
     
     el.querySelectorAll('.btn-edit-mat').forEach(b => b.onclick = () => editMat(b.dataset.id));
-    el.querySelectorAll('.btn-del-mat').forEach(b => b.onclick = () => delItem(APPWRITE_CONFIG.COLS.MATS, b.dataset.id, () => { cb(); })); 
-    // Note: cb (refreshCallback) is not in scope here for delItem, we need to handle delete separately or pass cb in closure.
-    // Simplification: Let's redefine delItem locally or import generic one.
-}
-
-// برای سادگی، حذف را اینجا مدیریت میکنیم ولی رفرش را به روش ساده تری انجام میدهیم
-import { fetchAllData } from './api.js';
-async function delItem(col, id) {
-    if(confirm('حذف؟')) {
-        try { await api.delete(col, id); await fetchAllData(); renderMaterials(); }
-        catch(e) { alert(e.message); }
-    }
+    el.querySelectorAll('.btn-del-mat').forEach(b => b.onclick = async () => {
+        if(confirm('حذف؟')) {
+            try { await api.delete(APPWRITE_CONFIG.COLS.MATS, b.dataset.id); import('./api.js').then(m=>m.fetchAllData().then(renderMaterials)); } // Quick refresh
+            catch(e) { alert(e.message); }
+        }
+    });
 }
 
 function editMat(id) {
@@ -72,18 +66,13 @@ function editMat(id) {
     document.getElementById('mat-price').value = formatPrice(m.price);
     document.getElementById('mat-category').value = m.category_id || '';
     
-    const btn = document.getElementById('mat-submit-btn');
-    btn.innerText = 'ویرایش';
-    btn.className = 'btn btn-primary flex-grow text-xs bg-amber-500 hover:bg-amber-600'; 
+    document.getElementById('mat-submit-btn').innerText = 'ویرایش';
     document.getElementById('mat-cancel-btn').classList.remove('hidden');
-    if(window.innerWidth < 1024) document.getElementById('tab-materials').scrollIntoView({behavior:'smooth'});
 }
 
 function resetMatForm() {
     document.getElementById('material-form').reset();
     document.getElementById('mat-id').value = '';
-    const btn = document.getElementById('mat-submit-btn');
-    btn.innerText = 'ذخیره کالا';
-    btn.className = 'btn btn-primary flex-grow text-xs';
+    document.getElementById('mat-submit-btn').innerText = 'ذخیره کالا';
     document.getElementById('mat-cancel-btn').classList.add('hidden');
 }

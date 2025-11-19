@@ -3,7 +3,7 @@ import { state, APPWRITE_CONFIG } from './config.js';
 import { switchTab } from './utils.js';
 
 export function setupStore(refreshCallback) {
-    // Store setup is minimal as it's mostly render
+    // Store setup mostly happens in render
 }
 
 export function renderStore(refreshCallback) {

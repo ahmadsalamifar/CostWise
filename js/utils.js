@@ -1,5 +1,3 @@
-// ابزارهای عمومی (UI Helpers)
-
 export function formatPrice(n) {
     if (n === undefined || n === null) return '0';
     return Number(n).toLocaleString('en-US');
@@ -21,10 +19,8 @@ export function switchTab(id) {
         if (el) el.classList.add('hidden');
         if (btn) btn.classList.remove('active');
     });
-    const target = document.getElementById('tab-' + id);
-    const targetBtn = document.getElementById('btn-tab-' + id);
-    if (target) target.classList.remove('hidden');
-    if (targetBtn) targetBtn.classList.add('active');
+    document.getElementById('tab-' + id).classList.remove('hidden');
+    document.getElementById('btn-tab-' + id).classList.add('active');
 }
 
 export function openModal(id) {

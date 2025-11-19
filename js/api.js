@@ -12,22 +12,20 @@ export async function fetchAllData() {
         state.materials = mRes.documents;
         state.formulas = fRes.documents.sort((a, b) => new Date(b.$updatedAt) - new Date(a.$updatedAt));
         
-        // Store (Optional)
         try {
             const sRes = await db.listDocuments(APPWRITE_CONFIG.DB_ID, APPWRITE_CONFIG.COLS.FORMS, [Query.equal('is_public', true), Query.limit(50)]);
             state.publicFormulas = sRes.documents;
-        } catch(e) { console.log('Store fetch error:', e); }
+        } catch(e) {}
         
         return true;
     } catch (error) {
-        console.error("API Error:", error);
         throw error;
     }
 }
 
-// عملیات دیتابیس (CRUD)
 export const api = {
     create: (col, data) => db.createDocument(APPWRITE_CONFIG.DB_ID, col, ID.unique(), data),
     update: (col, id, data) => db.updateDocument(APPWRITE_CONFIG.DB_ID, col, id, data),
-    delete: (col, id) => db.deleteDocument(APPWRITE_CONFIG.DB_ID, col, id)
+    delete: (col, id) => db.deleteDocument(APPWRITE_CONFIG.DB_ID, col, id),
+    get: (col, id) => db.getDocument(APPWRITE_CONFIG.DB_ID, col, id)
 };

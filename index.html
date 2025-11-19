@@ -4,27 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>سامانه جامع سیمرغ گستر پویا</title>
-    
-    <!-- کتابخانه‌ها -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/appwrite@14.0.0"></script>
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
-    
-    <!-- استایل -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-    <!-- لودینگ -->
+    <!-- Loading -->
     <div id="loading-screen">
         <div class="spinner"></div>
         <h2 class="text-xl font-bold mb-2">سیمرغ گستر پویا</h2>
         <p class="text-xs text-slate-400" id="loading-text">در حال اتصال...</p>
     </div>
 
-    <!-- محتوای اصلی -->
+    <!-- Main App -->
     <div id="app-content" class="hidden">
-        
         <header class="app-header">
             <div><h1 class="text-xl md:text-2xl font-black text-slate-800">ماشین حساب <span class="text-teal-600">سیمرغ</span></h1></div>
             <div class="flex items-center gap-2">
@@ -39,10 +33,9 @@
             <button class="tab-btn" id="btn-tab-categories" type="button">📂 دسته‌ها</button>
         </nav>
 
-        <!-- TAB 1: FORMULAS -->
+        <!-- TAB: FORMULAS -->
         <div id="tab-formulas">
             <div class="flex flex-col lg:flex-row gap-4 h-auto lg:h-[calc(100vh-220px)] min-h-[600px]">
-                <!-- List -->
                 <div class="w-full lg:w-1/3 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden h-[300px] lg:h-full shrink-0">
                     <div class="p-3 border-b border-slate-100 flex gap-2 bg-slate-50 items-center sticky top-0 z-10">
                         <input type="text" id="search-formulas" placeholder="جستجو..." class="input-field text-xs h-10">
@@ -50,7 +43,6 @@
                     </div>
                     <div id="formula-master-list" class="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar"></div>
                 </div>
-                <!-- Detail -->
                 <div class="w-full lg:w-2/3 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col relative min-h-[500px]" id="detail-panel">
                     <div id="formula-detail-empty" class="absolute inset-0 flex flex-col items-center justify-center text-slate-300 bg-white z-10 p-4 text-center">
                         <span class="text-5xl mb-4 opacity-20">🏗️</span>
@@ -95,7 +87,7 @@
             </div>
         </div>
 
-        <!-- TAB 2: MATERIALS -->
+        <!-- TAB: MATERIALS -->
         <div id="tab-materials" class="hidden">
             <div class="flex flex-col md:flex-row gap-6">
                 <div class="w-full md:w-1/3 order-2 md:order-1">
@@ -128,7 +120,7 @@
             </div>
         </div>
 
-        <!-- TAB 3: CATEGORIES -->
+        <!-- TAB: CATEGORIES -->
         <div id="tab-categories" class="hidden">
             <div class="max-w-md mx-auto bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mt-4">
                 <h3 class="font-bold text-slate-700 text-center mb-4">گروه‌بندی‌ها</h3>
@@ -140,7 +132,7 @@
             </div>
         </div>
 
-        <!-- TAB 4: STORE -->
+        <!-- TAB: STORE -->
         <div id="tab-store" class="hidden">
             <div id="store-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
         </div>
@@ -189,7 +181,6 @@
         </div>
     </div>
 
-    <!-- جاوااسکریپت ماژولار -->
     <script type="module" src="js/main.js"></script>
 </body>
 </html>
