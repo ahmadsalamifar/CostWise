@@ -60,10 +60,26 @@ export function updateUnitDropdowns() {
     ['mat-price-unit', 'mat-consumption-unit', 'mat-scraper-unit'].forEach(id => {
         const el = document.getElementById(id);
         if(el) {
+            // مقدار فعلی را نگه می‌داریم
             const prev = el.value;
+            
+            // لیست جدید را می‌سازیم
             el.innerHTML = optionsHtml;
-            if(availableUnits.includes(prev)) el.value = prev;
-            else if(availableUnits.length > 0) el.value = availableUnits[0];
+            
+            // لاجیک هوشمند: اگر مقدار قبلی در لیست جدید نبود، آن را به زور اضافه کن تا نپرد!
+            if (prev && !availableUnits.includes(prev)) {
+                const opt = document.createElement('option');
+                opt.value = prev;
+                opt.innerText = `${prev}`; // اگر خواستید مشخص شود نامعتبر است، (نامعتبر) اضافه کنید
+                el.appendChild(opt);
+                el.value = prev;
+            } 
+            else if (availableUnits.includes(prev)) {
+                el.value = prev;
+            } 
+            else if (availableUnits.length > 0) {
+                el.value = availableUnits[0];
+            }
         }
     });
     
@@ -115,9 +131,11 @@ export function setUnitData(rels) {
 
     currentUnitRelations = (rels.others || []).map(r => ({ name: r.name, qtyUnit: r.qtyUnit || 1, qtyBase: r.qtyBase || 1 }));
     renderRelationsUI();
+    
+    // اول دراپ‌داون‌ها را با مقادیر پیش‌فرض آپدیت می‌کنیم
     updateUnitDropdowns();
     
-    // تنظیم مقادیر انتخاب شده
+    // سپس مقادیر ذخیره شده را اعمال می‌کنیم (حتی اگر در لیست نباشند، تابع آپدیت جدید آن‌ها را حفظ می‌کند)
     if(rels.selected_purchase) setSelectValue('mat-price-unit', rels.selected_purchase);
     if(rels.selected_consumption) setSelectValue('mat-consumption-unit', rels.selected_consumption);
     if(rels.selected_scraper) setSelectValue('mat-scraper-unit', rels.selected_scraper);
@@ -139,6 +157,12 @@ export function resetUnitData() {
 function setSelectValue(id, val) {
     const el = document.getElementById(id);
     if(!el) return;
-    if(![...el.options].some(o=>o.value===val)) el.innerHTML += `<option value="${val}">${val}</option>`;
+    // اگر آپشن وجود ندارد، اضافه‌اش کن
+    if(![...el.options].some(o=>o.value===val)) {
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.innerText = val;
+        el.appendChild(opt);
+    }
     el.value = val;
 }
