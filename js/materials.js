@@ -5,7 +5,7 @@ import { formatPrice, parseLocaleNumber, getDateBadge } from './utils.js';
 let currentUnitRelations = []; 
 
 export function setupMaterials(refreshCallback) {
-    // سابمیت فرم
+    // سابمیت فرم ذخیره
     document.getElementById('material-form').onsubmit = (e) => { e.preventDefault(); saveMaterial(refreshCallback); };
     
     const cancelBtn = document.getElementById('mat-cancel-btn');
@@ -50,7 +50,7 @@ export function setupMaterials(refreshCallback) {
     if(bulkScraperBtn) bulkScraperBtn.onclick = async () => {
         if(!confirm('آیا می‌خواهید قیمت تمام کالاهای لینک‌دار را بروزرسانی کنید؟')) return;
         
-        bulkScraperBtn.innerText = '⏳ در حال استعلام...';
+        bulkScraperBtn.innerText = '⏳ استعلام کلی...';
         bulkScraperBtn.disabled = true;
         bulkScraperBtn.classList.add('opacity-70');
 
@@ -72,23 +72,17 @@ export function setupMaterials(refreshCallback) {
     };
 
     // ---------------------------------------------------------
-    // 3. اصلاح دکمه تست لینک (UI Fix)
-    // استفاده از Flexbox برای قرارگیری مرتب کنار اینپوت
+    // 3. دکمه تست لینک (UI Fix)
     // ---------------------------------------------------------
     const urlInput = document.getElementById('mat-scraper-url');
     if(urlInput && !document.getElementById('btn-test-link')) {
-        // والد اینپوت را به Flex تغییر می‌دهیم
         const parent = urlInput.parentElement; 
-        
-        // یک کانتینر ردیفی برای اینپوت و دکمه
         const rowWrapper = document.createElement('div');
         rowWrapper.className = "flex gap-2 items-center w-full";
         
-        // جابجایی اینپوت به داخل رپر
         parent.insertBefore(rowWrapper, urlInput);
         rowWrapper.appendChild(urlInput);
         
-        // دکمه تست
         const testBtn = document.createElement('button');
         testBtn.id = 'btn-test-link';
         testBtn.type = 'button';
@@ -113,11 +107,9 @@ export function setupMaterials(refreshCallback) {
                 const res = await api.runScraper({ type: 'single_check', url, anchor, factor });
                 if(res.success && res.data) {
                     document.getElementById('mat-price').value = formatPrice(res.data.final_price);
-                    
                     const pInput = document.getElementById('mat-price');
                     pInput.classList.add('bg-green-100', 'text-green-800');
                     setTimeout(() => pInput.classList.remove('bg-green-100', 'text-green-800'), 2000);
-
                     alert(`✅ قیمت یافت شد: ${formatPrice(res.data.final_price)} تومان`);
                 } else {
                     alert('❌ خطا: ' + (res.error || 'قیمت پیدا نشد'));
@@ -130,16 +122,24 @@ export function setupMaterials(refreshCallback) {
         };
     }
     
-    // مدیریت فرمت قیمت
+    // ---------------------------------------------------------
+    // 4. رفع مشکل تایپ قیمت و مالیات
+    // ---------------------------------------------------------
     const priceInput = document.getElementById('mat-price');
     if(priceInput) {
+        // حذف تمام لیسنرهای مزاحم قبلی با کلون کردن نود
         const newPriceInput = priceInput.cloneNode(true);
         priceInput.parentNode.replaceChild(newPriceInput, priceInput);
         
+        // اجازه تایپ آزادانه
         newPriceInput.onfocus = (e) => {
             const val = parseLocaleNumber(e.target.value);
+            // نمایش عدد بدون کاما برای ویرایش راحت‌تر
             if(val > 0) e.target.value = val; 
+            e.target.select(); // انتخاب کل متن برای ویرایش سریع
         };
+        
+        // فرمت کردن فقط وقتی کاربر خارج شد
         newPriceInput.onblur = (e) => {
             const val = parseLocaleNumber(e.target.value);
             if(val > 0) e.target.value = formatPrice(val); 
@@ -149,7 +149,7 @@ export function setupMaterials(refreshCallback) {
     const baseUnitSelect = document.getElementById('mat-base-unit-select');
     if(baseUnitSelect) baseUnitSelect.onchange = updateUnitDropdowns;
     
-    // اصلاح: استفاده از ID صحیح (mat-price-unit) برای لیسنرها
+    // استفاده از ID های صحیح
     ['mat-price-unit', 'mat-scraper-unit'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.onchange = calculateScraperFactor;
@@ -213,7 +213,6 @@ function updateUnitDropdowns() {
     
     const optionsHtml = availableUnits.map(u => `<option value="${u}">${u}</option>`).join('');
     
-    // FIX: استفاده از mat-price-unit به جای mat-purchase-unit که در HTML وجود ندارد
     ['mat-price-unit', 'mat-consumption-unit', 'mat-scraper-unit'].forEach(id => {
         const el = document.getElementById(id);
         if(el) {
@@ -237,7 +236,6 @@ function getFactorToBase(unitName) {
 
 function calculateScraperFactor() {
     const sSelect = document.getElementById('mat-scraper-unit');
-    // FIX: استفاده از mat-price-unit
     const pSelect = document.getElementById('mat-price-unit');
     const factorInput = document.getElementById('mat-scraper-factor');
     if(!sSelect || !pSelect || !factorInput) return;
@@ -251,7 +249,7 @@ function calculateScraperFactor() {
 }
 
 // ---------------------------------------------------------
-// 4. رفع مشکل ذخیره (مدیریت واحد پایه گمشده و ID صحیح)
+// ذخیره کالا (Fix: ذخیره صحیح مالیات و قیمت)
 // ---------------------------------------------------------
 async function saveMaterial(cb) {
     const id = document.getElementById('mat-id').value;
@@ -260,7 +258,6 @@ async function saveMaterial(cb) {
     let baseUnitVal = baseElem.value;
     if(!baseUnitVal) baseUnitVal = 'عدد';
 
-    // FIX: گرفتن مقدار از mat-price-unit
     let purchaseUnitVal = document.getElementById('mat-price-unit').value;
     if(!purchaseUnitVal) purchaseUnitVal = baseUnitVal;
 
@@ -268,13 +265,13 @@ async function saveMaterial(cb) {
     if(!consumptionUnitVal) consumptionUnitVal = purchaseUnitVal;
 
     const rawPrice = document.getElementById('mat-price').value;
-    const priceNum = parseLocaleNumber(rawPrice);
+    const priceNum = parseLocaleNumber(rawPrice); // تبدیل قیمت به عدد خالص
 
     const data = {
         name: document.getElementById('mat-name').value,
         display_name: document.getElementById('mat-display-name').value || null,
         category_id: document.getElementById('mat-category').value || null,
-        price: priceNum,
+        price: priceNum, // قیمت پایه خرید بدون مالیات ذخیره می‌شود
         scraper_url: document.getElementById('mat-scraper-url').value || null,
         scraper_anchor: document.getElementById('mat-scraper-anchor').value || null,
         
@@ -283,6 +280,8 @@ async function saveMaterial(cb) {
         consumption_unit: consumptionUnitVal,
         
         scraper_factor: parseFloat(document.getElementById('mat-scraper-factor').value) || 1,
+        
+        // بررسی دقیق چک‌باکس مالیات
         has_tax: document.getElementById('mat-has-tax').checked,
         
         unit_relations: JSON.stringify({
@@ -335,9 +334,16 @@ export function renderMaterials(filter='') {
         
         let taxBadge = '';
         let borderClass = 'border-slate-100';
+        let taxInfo = '';
+
+        // --- نمایش بصری مالیات ---
         if (m.has_tax) {
             taxBadge = '<span class="text-[9px] font-bold bg-rose-100 text-rose-600 px-1.5 rounded ml-1">مالیات</span>';
             borderClass = 'border-rose-200 ring-1 ring-rose-50';
+            
+            // محاسبه قیمت با مالیات فقط جهت نمایش به کاربر
+            const taxedPrice = m.price * 1.10;
+            taxInfo = `<div class="text-[10px] text-rose-500 mt-0.5 font-bold">با مالیات: ${formatPrice(taxedPrice)}</div>`;
         }
 
         return `
@@ -357,9 +363,12 @@ export function renderMaterials(filter='') {
             </div>
             <div class="flex justify-between items-end mt-2 pt-2 border-t border-dashed border-slate-100">
                  <span class="text-[10px] text-slate-400">${getDateBadge(m.$updatedAt)}</span>
-                 <div class="text-right">
-                     <span class="font-bold text-teal-700 text-lg">${formatPrice(m.price)}</span>
-                     <span class="text-[10px] text-slate-400 mr-1">تومان / ${pUnit}</span>
+                 <div class="text-right flex flex-col items-end">
+                     <div>
+                        <span class="font-bold text-teal-700 text-lg">${formatPrice(m.price)}</span>
+                        <span class="text-[10px] text-slate-400 mr-1">تومان / ${pUnit}</span>
+                     </div>
+                     ${taxInfo}
                 </div>
             </div>
         </div>`;
@@ -382,7 +391,11 @@ function editMat(id) {
     document.getElementById('mat-display-name').value = m.display_name || '';
     document.getElementById('mat-category').value = m.category_id || '';
     document.getElementById('mat-has-tax').checked = !!m.has_tax; 
-    document.getElementById('mat-price').value = formatPrice(m.price);
+    
+    // نمایش قیمت فرمت شده
+    const pInput = document.getElementById('mat-price');
+    pInput.value = formatPrice(m.price);
+    
     document.getElementById('mat-scraper-url').value = m.scraper_url || '';
     document.getElementById('mat-scraper-anchor').value = m.scraper_anchor || '';
     
@@ -409,7 +422,6 @@ function editMat(id) {
         
         const savedP = rels.selected_purchase || m.purchase_unit || m.unit;
         if(savedP) {
-             // FIX: استفاده از mat-price-unit
              const pEl = document.getElementById('mat-price-unit');
              if(![...pEl.options].some(o=>o.value===savedP)) {
                  pEl.innerHTML += `<option value="${savedP}">${savedP}</option>`;
