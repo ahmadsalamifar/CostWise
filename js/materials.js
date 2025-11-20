@@ -5,7 +5,7 @@ import { formatPrice, parseLocaleNumber, getDateBadge } from './utils.js';
 let currentUnitRelations = []; 
 
 export function setupMaterials(refreshCallback) {
-    // مدیریت سابمیت فرم
+    // سابمیت فرم
     document.getElementById('material-form').onsubmit = (e) => { e.preventDefault(); saveMaterial(refreshCallback); };
     
     const cancelBtn = document.getElementById('mat-cancel-btn');
@@ -21,14 +21,12 @@ export function setupMaterials(refreshCallback) {
     if(addRelBtn) addRelBtn.onclick = addRelationRow;
 
     // ---------------------------------------------------------
-    // دکمه مثبت (+) برای کالای جدید
+    // 1. دکمه مثبت (+) برای کالای جدید
     // ---------------------------------------------------------
     const sidebarHeader = document.querySelector('#tab-materials h3');
     if(sidebarHeader && !document.getElementById('btn-new-mat-plus')) {
         const container = document.createElement('div');
         container.className = "flex items-center justify-between w-full mb-2";
-        
-        // انتقال تایتل به داخل کانتینر
         sidebarHeader.parentNode.insertBefore(container, sidebarHeader);
         container.appendChild(sidebarHeader);
         
@@ -46,29 +44,26 @@ export function setupMaterials(refreshCallback) {
     }
 
     // ---------------------------------------------------------
-    // دکمه اصلی بروزرسانی قیمت‌ها (Bulk Update)
-    // این دکمه مستقل از فرم عمل می‌کند و همه کالاها را آپدیت می‌کند
+    // 2. دکمه بروزرسانی کلی (Bulk Update)
     // ---------------------------------------------------------
     const bulkScraperBtn = document.getElementById('btn-scraper-trigger');
     if(bulkScraperBtn) bulkScraperBtn.onclick = async () => {
-        if(!confirm('آیا می‌خواهید قیمت تمام کالاهای لینک‌دار را از سایت مرجع بروزرسانی کنید؟')) return;
+        if(!confirm('آیا می‌خواهید قیمت تمام کالاهای لینک‌دار را بروزرسانی کنید؟')) return;
         
-        bulkScraperBtn.innerText = '⏳ در حال استعلام کلی...';
+        bulkScraperBtn.innerText = '⏳ در حال استعلام...';
         bulkScraperBtn.disabled = true;
         bulkScraperBtn.classList.add('opacity-70');
 
         try {
-            // ارسال درخواست Bulk (بدون پارامتر اضافی)
             const result = await api.runScraper({ type: 'bulk' }); 
-            
             if(result.success && result.report) {
                 showScraperReport(result.report); 
-                refreshCallback(); // رفرش لیست برای نمایش قیمت‌های جدید
+                refreshCallback(); 
             } else {
-                alert('خطا در عملیات: ' + (result.error || 'پاسخ نامشخص'));
+                alert('خطا: ' + (result.error || 'پاسخ نامشخص'));
             }
         } 
-        catch(e) { alert('خطا در ارتباط با سرور: ' + e.message); } 
+        catch(e) { alert('خطا: ' + e.message); } 
         finally { 
             bulkScraperBtn.innerText = '🤖 بروزرسانی قیمت‌ها'; 
             bulkScraperBtn.disabled = false;
@@ -77,42 +72,68 @@ export function setupMaterials(refreshCallback) {
     };
 
     // ---------------------------------------------------------
-    // دکمه تست لینک تکی (داخل فرم)
+    // 3. اصلاح دکمه تست لینک (UI Fix)
+    // دکمه را از حالت Absolute خارج کرده و کنار اینپوت قرار می‌دهیم
     // ---------------------------------------------------------
     const urlInput = document.getElementById('mat-scraper-url');
     if(urlInput && !document.getElementById('btn-test-link')) {
+        // والد اینپوت را به Flex تغییر می‌دهیم تا کنار هم قرار بگیرند
+        const parent = urlInput.parentElement; // div.flex-col
+        
+        // یک کانتینر ردیفی برای اینپوت و دکمه می‌سازیم
+        const rowWrapper = document.createElement('div');
+        rowWrapper.className = "flex gap-2 items-center w-full";
+        
+        // اینپوت را به داخل رپر جدید منتقل می‌کنیم
+        parent.insertBefore(rowWrapper, urlInput);
+        rowWrapper.appendChild(urlInput);
+        
+        // دکمه تست جدید
         const testBtn = document.createElement('button');
         testBtn.id = 'btn-test-link';
         testBtn.type = 'button';
-        testBtn.innerText = '⚡ تست';
-        testBtn.className = 'absolute left-1 top-1 bottom-1 px-2 bg-blue-50 text-blue-600 text-[10px] rounded font-bold hover:bg-blue-100 border border-blue-200';
+        testBtn.className = 'bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 px-3 rounded-lg h-10 text-xs font-bold shrink-0 transition-colors';
+        testBtn.innerHTML = '⚡ تست';
+        testBtn.title = 'بررسی قیمت این لینک بدون ذخیره';
+        
+        rowWrapper.appendChild(testBtn);
+
+        // لاجیک دکمه تست
         testBtn.onclick = async () => {
             const url = urlInput.value;
             const anchor = document.getElementById('mat-scraper-anchor').value;
             const factor = parseFloat(document.getElementById('mat-scraper-factor').value) || 1;
             
-            if(!url) { alert('لینک خالی است'); return; }
+            if(!url) { alert('لطفاً لینک را وارد کنید'); return; }
             
-            testBtn.innerText = '...';
+            const originalText = testBtn.innerHTML;
+            testBtn.innerText = '⏳ ...';
+            testBtn.disabled = true;
+            
             try {
                 const res = await api.runScraper({ type: 'single_check', url, anchor, factor });
                 if(res.success && res.data) {
                     document.getElementById('mat-price').value = formatPrice(res.data.final_price);
-                    alert(`قیمت یافت شد: ${formatPrice(res.data.final_price)} تومان`);
+                    
+                    // افکت موفقیت روی فیلد قیمت
+                    const pInput = document.getElementById('mat-price');
+                    pInput.classList.add('bg-green-100', 'text-green-800');
+                    setTimeout(() => pInput.classList.remove('bg-green-100', 'text-green-800'), 2000);
+
+                    // نمایش پیغام کوچک زیر دکمه
+                    alert(`✅ قیمت یافت شد: ${formatPrice(res.data.final_price)} تومان`);
                 } else {
-                    alert('خطا: ' + (res.error || 'یافت نشد'));
+                    alert('❌ خطا: ' + (res.error || 'قیمت پیدا نشد'));
                 }
-            } catch(e) { alert(e.message); }
-            finally { testBtn.innerText = '⚡ تست'; }
+            } catch(e) { alert('خطا: ' + e.message); }
+            finally { 
+                testBtn.innerHTML = originalText;
+                testBtn.disabled = false;
+            }
         };
-        // اضافه کردن دکمه داخل رپر اینپوت
-        urlInput.parentElement.style.position = 'relative';
-        urlInput.parentElement.appendChild(testBtn);
     }
     
-    // ---------------------------------------------------------
-    // رفع باگ اینپوت قیمت (تایپ راحت + نمایش واحد)
-    // ---------------------------------------------------------
+    // مدیریت اینپوت قیمت (فرمت ۳ رقم)
     const priceInput = document.getElementById('mat-price');
     if(priceInput) {
         const newPriceInput = priceInput.cloneNode(true);
@@ -120,11 +141,11 @@ export function setupMaterials(refreshCallback) {
         
         newPriceInput.onfocus = (e) => {
             const val = parseLocaleNumber(e.target.value);
-            if(val > 0) e.target.value = val; // نمایش عدد خام
+            if(val > 0) e.target.value = val; 
         };
         newPriceInput.onblur = (e) => {
             const val = parseLocaleNumber(e.target.value);
-            if(val > 0) e.target.value = formatPrice(val); // نمایش فرمت شده
+            if(val > 0) e.target.value = formatPrice(val); 
         };
     }
     
@@ -137,50 +158,7 @@ export function setupMaterials(refreshCallback) {
     });
 }
 
-// --- توابع کمکی UI ---
-
-function showScraperReport(report) {
-    const existing = document.getElementById('report-modal');
-    if(existing) existing.remove();
-
-    let content = '';
-    let successCount = 0;
-
-    if(!report || report.length === 0) content = '<p class="text-center text-slate-400 py-4">نتیجه‌ای یافت نشد.</p>';
-    else {
-        report.forEach(item => {
-            let style = { bg: 'bg-slate-50', border: 'border-slate-200', icon: '⚪' };
-            if(item.status === 'success') {
-                style = { bg: 'bg-emerald-50', border: 'border-emerald-200', icon: '✅' };
-                successCount++;
-            }
-            if(item.status === 'error') style = { bg: 'bg-rose-50', border: 'border-rose-200', icon: '❌' };
-            
-            content += `
-            <div class="border rounded p-2 mb-1 ${style.bg} ${style.border} text-xs">
-                <div class="font-bold flex justify-between text-slate-700">
-                    <span class="truncate w-2/3" title="${item.name}">${style.icon} ${item.name}</span> 
-                    <span class="text-[10px] opacity-70">${item.status}</span>
-                </div>
-                <div class="text-slate-500 mt-1 text-[10px]">${item.msg}</div>
-                ${item.new ? `<div class="mt-1 font-bold text-emerald-600 text-left dir-ltr">${formatPrice(item.new)} T</div>` : ''}
-            </div>`;
-        });
-    }
-
-    const html = `
-    <div class="fixed inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" id="report-modal">
-        <div class="bg-white rounded-xl w-full max-w-md max-h-[80vh] flex flex-col shadow-2xl">
-            <div class="p-3 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
-                <h3 class="font-bold text-sm text-slate-700">گزارش بروزرسانی (${successCount}/${report.length})</h3>
-                <button onclick="document.getElementById('report-modal').remove()" class="text-slate-400 hover:text-rose-500 text-xl">&times;</button>
-            </div>
-            <div class="p-3 overflow-y-auto flex-1 custom-scrollbar">${content}</div>
-            <div class="p-3 border-t"><button onclick="document.getElementById('report-modal').remove()" class="btn btn-primary w-full text-xs">بستن</button></div>
-        </div>
-    </div>`;
-    document.body.insertAdjacentHTML('beforeend', html);
-}
+// --- توابع کمکی ---
 
 function renderRelationsUI() {
     const container = document.getElementById('unit-relations-container');
@@ -225,7 +203,13 @@ function addRelationRow() {
 function updateUnitDropdowns() {
     const baseElem = document.getElementById('mat-base-unit-select');
     if(!baseElem) return;
+    
+    // چک می‌کنیم اگر واحد پایه خالی است (مثلاً هنوز انتخابی نشده)، اولی را انتخاب کند
+    if(!baseElem.value && baseElem.options.length > 0) {
+        baseElem.selectedIndex = 0;
+    }
     const baseUnit = baseElem.value;
+
     let availableUnits = [baseUnit];
     currentUnitRelations.forEach(r => availableUnits.push(r.name));
     availableUnits = [...new Set(availableUnits)];
@@ -237,8 +221,9 @@ function updateUnitDropdowns() {
         if(el) {
             const prev = el.value;
             el.innerHTML = optionsHtml;
+            // حفظ انتخاب قبلی اگر هنوز معتبر است
             if(availableUnits.includes(prev)) el.value = prev;
-            else el.value = availableUnits[0];
+            else if(availableUnits.length > 0) el.value = availableUnits[0];
         }
     });
     
@@ -268,15 +253,21 @@ function calculateScraperFactor() {
 }
 
 // ---------------------------------------------------------
-// ذخیره کالا (رفع باگ: پر کردن مقادیر خالی)
+// 4. رفع مشکل ذخیره (مدیریت واحد پایه گمشده)
 // ---------------------------------------------------------
 async function saveMaterial(cb) {
     const id = document.getElementById('mat-id').value;
-    calculateScraperFactor(); 
     
-    // اگر واحدی انتخاب نشده باشد، پیش‌فرض "عدد" قرار می‌گیرد تا Appwrite خطا ندهد
+    // اطمینان از اینکه واحد پایه مقدار دارد
+    const baseElem = document.getElementById('mat-base-unit-select');
+    let baseUnitVal = baseElem.value;
+    if(!baseUnitVal) {
+        // اگر واحدی در دراپ‌داون نیست، "عدد" را اجباری کن
+        baseUnitVal = 'عدد';
+    }
+
     let purchaseUnitVal = document.getElementById('mat-purchase-unit').value;
-    if(!purchaseUnitVal) purchaseUnitVal = 'عدد';
+    if(!purchaseUnitVal) purchaseUnitVal = baseUnitVal;
 
     let consumptionUnitVal = document.getElementById('mat-consumption-unit') ? document.getElementById('mat-consumption-unit').value : purchaseUnitVal;
     if(!consumptionUnitVal) consumptionUnitVal = purchaseUnitVal;
@@ -300,7 +291,7 @@ async function saveMaterial(cb) {
         has_tax: document.getElementById('mat-has-tax').checked,
         
         unit_relations: JSON.stringify({
-            base: document.getElementById('mat-base-unit-select').value || 'عدد',
+            base: baseUnitVal,
             others: currentUnitRelations,
             selected_purchase: purchaseUnitVal,
             selected_consumption: consumptionUnitVal,
@@ -314,17 +305,22 @@ async function saveMaterial(cb) {
         
         resetMatForm();
         cb(); 
-        alert('کالا با موفقیت ذخیره شد');
+        alert('✅ ذخیره شد');
     } catch(e){ 
-        alert('خطا در ذخیره: ' + e.message); 
-        console.error(e);
+        alert('❌ خطا در ذخیره: ' + e.message); 
     }
 }
 
+// ---------------------------------------------------------
+// تابع رندر لیست متریال
+// ---------------------------------------------------------
 export function renderMaterials(filter='') {
+    // پر کردن اولیه دراپ‌داون واحد پایه
     const baseSelect = document.getElementById('mat-base-unit-select');
     if(baseSelect && state.units.length > 0 && baseSelect.options.length === 0) {
         baseSelect.innerHTML = state.units.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
+        // اگر واحد پایه هنوز خالی است، اولی را انتخاب کن
+        if(!baseSelect.value) baseSelect.selectedIndex = 0;
         updateUnitDropdowns(); 
     }
 
@@ -385,6 +381,9 @@ export function renderMaterials(filter='') {
     });
 }
 
+// ---------------------------------------------------------
+// 5. رفع مشکل نمایش در ادیت (اگر واحد حذف شده بود)
+// ---------------------------------------------------------
 function editMat(id) {
     const m = state.materials.find(x => x.$id === id);
     if(!m) return;
@@ -404,14 +403,26 @@ function editMat(id) {
         const rels = JSON.parse(m.unit_relations || '{}');
         const baseSelect = document.getElementById('mat-base-unit-select');
         
-        if(state.units.length === 0) baseSelect.innerHTML = `<option value="${rels.base || 'عدد'}">${rels.base || 'عدد'}</option>`;
-        if(rels.base) baseSelect.value = rels.base;
+        // مرحله 1: پر کردن لیست واحدها از state
+        baseSelect.innerHTML = state.units.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
+        
+        // مرحله 2: اگر واحد پایه کالا در لیست state نیست، دستی اضافه‌اش کن (مهم!)
+        const savedBase = rels.base || 'عدد';
+        let baseExists = Array.from(baseSelect.options).some(o => o.value === savedBase);
+        if (!baseExists) {
+            const opt = document.createElement('option');
+            opt.value = savedBase;
+            opt.innerText = savedBase + " (قدیمی)";
+            baseSelect.appendChild(opt);
+        }
+        baseSelect.value = savedBase;
 
         currentUnitRelations = (rels.others || []).map(r => ({ name: r.name, qtyUnit: r.qtyUnit || 1, qtyBase: r.qtyBase || 1 }));
         
         renderRelationsUI(); 
         updateUnitDropdowns();
         
+        // مرحله 3: اطمینان از انتخاب درست واحد خرید
         const savedP = rels.selected_purchase || m.purchase_unit || m.unit;
         if(savedP) {
              const pEl = document.getElementById('mat-purchase-unit');
@@ -439,9 +450,60 @@ function resetMatForm() {
     document.getElementById('material-form').reset();
     document.getElementById('mat-id').value = '';
     currentUnitRelations = [];
+    
+    // بازگرداندن لیست واحدها به حالت استاندارد (حذف واحدهای قدیمی اضافه شده)
+    const baseSelect = document.getElementById('mat-base-unit-select');
+    if(baseSelect) {
+        baseSelect.innerHTML = state.units.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
+        if(baseSelect.options.length > 0) baseSelect.selectedIndex = 0;
+    }
+
     renderRelationsUI();
     updateUnitDropdowns();
+    
     const btn = document.getElementById('mat-submit-btn');
     if(btn) btn.innerText = 'ذخیره کالا';
     document.getElementById('mat-cancel-btn').classList.add('hidden');
+}
+function showScraperReport(report) {
+    const existing = document.getElementById('report-modal');
+    if(existing) existing.remove();
+
+    let content = '';
+    let successCount = 0;
+
+    if(!report || report.length === 0) content = '<p class="text-center text-slate-400 py-4">نتیجه‌ای یافت نشد.</p>';
+    else {
+        report.forEach(item => {
+            let style = { bg: 'bg-slate-50', border: 'border-slate-200', icon: '⚪' };
+            if(item.status === 'success') {
+                style = { bg: 'bg-emerald-50', border: 'border-emerald-200', icon: '✅' };
+                successCount++;
+            }
+            if(item.status === 'error') style = { bg: 'bg-rose-50', border: 'border-rose-200', icon: '❌' };
+            
+            content += `
+            <div class="border rounded p-2 mb-1 ${style.bg} ${style.border} text-xs">
+                <div class="font-bold flex justify-between text-slate-700">
+                    <span class="truncate w-2/3" title="${item.name}">${style.icon} ${item.name}</span> 
+                    <span class="text-[10px] opacity-70">${item.status}</span>
+                </div>
+                <div class="text-slate-500 mt-1 text-[10px]">${item.msg}</div>
+                ${item.new ? `<div class="mt-1 font-bold text-emerald-600 text-left dir-ltr">${formatPrice(item.new)} T</div>` : ''}
+            </div>`;
+        });
+    }
+
+    const html = `
+    <div class="fixed inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" id="report-modal">
+        <div class="bg-white rounded-xl w-full max-w-md max-h-[80vh] flex flex-col shadow-2xl">
+            <div class="p-3 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
+                <h3 class="font-bold text-sm text-slate-700">گزارش بروزرسانی (${successCount}/${report.length})</h3>
+                <button onclick="document.getElementById('report-modal').remove()" class="text-slate-400 hover:text-rose-500 text-xl">&times;</button>
+            </div>
+            <div class="p-3 overflow-y-auto flex-1 custom-scrollbar">${content}</div>
+            <div class="p-3 border-t"><button onclick="document.getElementById('report-modal').remove()" class="btn btn-primary w-full text-xs">بستن</button></div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
 }
