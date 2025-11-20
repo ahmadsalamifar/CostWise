@@ -60,17 +60,12 @@ export function updateUnitDropdowns() {
     ['mat-price-unit', 'mat-consumption-unit', 'mat-scraper-unit'].forEach(id => {
         const el = document.getElementById(id);
         if(el) {
-            // مقدار فعلی را نگه می‌داریم
             const prev = el.value;
-            
-            // لیست جدید را می‌سازیم
             el.innerHTML = optionsHtml;
-            
-            // لاجیک هوشمند: اگر مقدار قبلی در لیست جدید نبود، آن را به زور اضافه کن تا نپرد!
             if (prev && !availableUnits.includes(prev)) {
                 const opt = document.createElement('option');
                 opt.value = prev;
-                opt.innerText = `${prev}`; // اگر خواستید مشخص شود نامعتبر است، (نامعتبر) اضافه کنید
+                opt.innerText = `${prev}`;
                 el.appendChild(opt);
                 el.value = prev;
             } 
@@ -108,14 +103,20 @@ export function calculateScraperFactor() {
     factorInput.value = parseFloat(rate.toFixed(4)); 
 }
 
-// توابع کمکی برای دریافت و تنظیم دیتا از فایل اصلی
+// --- اصلاح اصلی در اینجا ---
+// دریافت امن اطلاعات (Safe Access)
 export function getUnitData() {
+    const getVal = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.value : null; // اگر المنت نبود، null برگردان و خطا نده
+    };
+
     return {
-        base: document.getElementById('mat-base-unit-select').value || 'عدد',
+        base: getVal('mat-base-unit-select') || 'عدد',
         others: currentUnitRelations,
-        selected_purchase: document.getElementById('mat-price-unit').value,
-        selected_consumption: document.getElementById('mat-consumption-unit').value,
-        selected_scraper: document.getElementById('mat-scraper-unit').value
+        selected_purchase: getVal('mat-price-unit'),
+        selected_consumption: getVal('mat-consumption-unit'),
+        selected_scraper: getVal('mat-scraper-unit')
     };
 }
 
@@ -132,10 +133,8 @@ export function setUnitData(rels) {
     currentUnitRelations = (rels.others || []).map(r => ({ name: r.name, qtyUnit: r.qtyUnit || 1, qtyBase: r.qtyBase || 1 }));
     renderRelationsUI();
     
-    // اول دراپ‌داون‌ها را با مقادیر پیش‌فرض آپدیت می‌کنیم
     updateUnitDropdowns();
     
-    // سپس مقادیر ذخیره شده را اعمال می‌کنیم (حتی اگر در لیست نباشند، تابع آپدیت جدید آن‌ها را حفظ می‌کند)
     if(rels.selected_purchase) setSelectValue('mat-price-unit', rels.selected_purchase);
     if(rels.selected_consumption) setSelectValue('mat-consumption-unit', rels.selected_consumption);
     if(rels.selected_scraper) setSelectValue('mat-scraper-unit', rels.selected_scraper);
@@ -157,7 +156,6 @@ export function resetUnitData() {
 function setSelectValue(id, val) {
     const el = document.getElementById(id);
     if(!el) return;
-    // اگر آپشن وجود ندارد، اضافه‌اش کن
     if(![...el.options].some(o=>o.value===val)) {
         const opt = document.createElement('option');
         opt.value = val;
