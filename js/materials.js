@@ -26,7 +26,6 @@ export function setupMaterials(refreshCallback) {
     const baseUnitSelect = document.getElementById('mat-base-unit-select');
     if(baseUnitSelect) baseUnitSelect.onchange = Units.updateUnitDropdowns;
     
-    // استفاده از ID صحیح
     ['mat-price-unit', 'mat-scraper-unit'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.onchange = Units.calculateScraperFactor;
@@ -38,7 +37,7 @@ export function setupMaterials(refreshCallback) {
     // 5. دکمه مثبت
     setupAddButton();
 
-    // 6. اصلاح اینپوت قیمت (رفع تداخل با main.js)
+    // 6. اصلاح اینپوت قیمت
     setupPriceInput();
 }
 
@@ -67,24 +66,20 @@ function setupAddButton() {
 function setupPriceInput() {
     const priceInput = document.getElementById('mat-price');
     if(priceInput) {
-        // حذف کلاس price-input تا main.js روی آن اثر نگذارد و پرش ایجاد نکند
         priceInput.classList.remove('price-input');
         
-        // کلون کردن برای حذف ایونت‌های قبلی
         const newPriceInput = priceInput.cloneNode(true);
         priceInput.parentNode.replaceChild(newPriceInput, priceInput);
         
         newPriceInput.setAttribute('dir', 'ltr');
         newPriceInput.classList.add('text-left');
         
-        // هنگام فوکوس: نمایش عدد خام
         newPriceInput.onfocus = (e) => {
             const val = e.target.value ? e.target.value.toString().replace(/,/g, '') : '';
             e.target.value = val;
             e.target.select();
         };
         
-        // هنگام خروج: فرمت کردن
         newPriceInput.onblur = (e) => {
             const val = parseLocaleNumber(e.target.value);
             if(val > 0) e.target.value = formatPrice(val); 
@@ -95,10 +90,7 @@ function setupPriceInput() {
 async function saveMaterial(cb) {
     const id = document.getElementById('mat-id').value;
     
-    // دریافت داده‌های واحد با اطمینان
     const unitData = Units.getUnitData();
-    
-    // اطمینان از پر بودن واحدها (Fallback به 'عدد')
     const purchaseUnitVal = unitData.selected_purchase || unitData.base || 'عدد';
     const consumptionUnitVal = unitData.selected_consumption || purchaseUnitVal;
 
@@ -113,7 +105,6 @@ async function saveMaterial(cb) {
         scraper_url: document.getElementById('mat-scraper-url').value || null,
         scraper_anchor: document.getElementById('mat-scraper-anchor').value || null,
         
-        // پر کردن فیلدهای الزامی با مقادیر مطمئن
         unit: purchaseUnitVal, 
         purchase_unit: purchaseUnitVal,
         consumption_unit: consumptionUnitVal,
@@ -137,8 +128,10 @@ async function saveMaterial(cb) {
     }
 }
 
+// ---------------------------------------------------------
+// تابع رندر لیست (با لاجیک مرتب‌سازی اصلاح شده)
+// ---------------------------------------------------------
 export function renderMaterials(filter='') {
-    // پر کردن لیست واحدها اگر خالی بود
     if (document.getElementById('mat-base-unit-select').options.length === 0 && state.units.length > 0) {
         Units.resetUnitData();
     }
@@ -148,9 +141,29 @@ export function renderMaterials(filter='') {
     
     let list = state.materials.filter(m => m.name.includes(filter) || (m.display_name && m.display_name.includes(filter)));
     
+    // === لاجیک مرتب‌سازی اصلاح شده ===
     list.sort((a,b) => {
+        // 1. قیمت (گران‌ترین و ارزان‌ترین)
         if(sort === 'price_desc') return b.price - a.price;
         if(sort === 'price_asc') return a.price - b.price;
+        
+        // 2. حروف الفبا (فارسی)
+        if(sort === 'name_asc') return a.name.localeCompare(b.name, 'fa');
+        
+        // 3. دسته‌بندی (نام دسته + نام کالا)
+        if(sort === 'category') {
+            const getCatName = (id) => { 
+                const c = state.categories.find(cat => cat.$id === id); 
+                return c ? c.name : 'zzz'; // کالاهای بدون دسته بروند ته لیست
+            };
+            const catA = getCatName(a.category_id);
+            const catB = getCatName(b.category_id);
+            
+            // اول بر اساس نام دسته مقایسه کن، اگر یکی بود بر اساس نام کالا
+            return catA.localeCompare(catB, 'fa') || a.name.localeCompare(b.name, 'fa');
+        }
+        
+        // 4. پیش‌فرض: تاریخ بروزرسانی (جدیدترین اول)
         return new Date(b.$updatedAt) - new Date(a.$updatedAt);
     });
     
@@ -219,10 +232,8 @@ function editMat(id) {
     document.getElementById('mat-category').value = m.category_id || '';
     document.getElementById('mat-has-tax').checked = !!m.has_tax; 
     
-    // تنظیم قیمت
     const pInput = document.getElementById('mat-price');
     if(pInput) {
-        // مطمئن شویم کلاس مزاحم حذف شده
         pInput.classList.remove('price-input');
         pInput.value = formatPrice(m.price);
     }
@@ -250,7 +261,6 @@ function resetMatForm() {
     document.getElementById('material-form').reset();
     document.getElementById('mat-id').value = '';
     
-    // حذف کلاس مزاحم برای حالت جدید هم ضروری است
     const pInput = document.getElementById('mat-price');
     if(pInput) pInput.classList.remove('price-input');
 
