@@ -1,15 +1,20 @@
 // توابع کمکی و ابزارها
 
-// فرمت کردن قیمت (۳ رقم ۳ رقم)
+// فرمت کردن قیمت (اعداد فارسی، ۳ رقم ۳ رقم، بدون اعشار)
 export function formatPrice(n) {
-    if (n === undefined || n === null || isNaN(n)) return '0';
-    return Number(n).toLocaleString('en-US');
+    if (n === undefined || n === null || isNaN(n)) return '۰';
+    // Math.round برای حذف اعشار
+    // 'fa-IR' برای تبدیل به اعداد فارسی
+    return Math.round(Number(n)).toLocaleString('fa-IR');
 }
 
-// حذف کاما از ورودی عدد برای ذخیره‌سازی
+// تبدیل عدد (فارسی یا انگلیسی) به عدد جاوااسکریپت برای محاسبات
 export function parseLocaleNumber(stringNumber) {
     if (!stringNumber) return 0;
-    const clean = stringNumber.toString().replace(/,/g, '');
+    // تبدیل اعداد فارسی به انگلیسی
+    const english = stringNumber.toString().replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+    // حذف کاما
+    const clean = english.replace(/,/g, '');
     return parseFloat(clean) || 0;
 }
 
@@ -32,10 +37,12 @@ export function getDateBadge(dateString) {
     return `<span class="text-[10px] px-1.5 py-0.5 rounded border ${colorClass}">${formatDate(dateString)}</span>`;
 }
 
-// اعمال فرمت ۳ رقم هنگام تایپ در اینپوت
+// اعمال فرمت ۳ رقم هنگام تایپ (پشتیبانی از اعداد فارسی)
 export function formatInput(el) {
-    const r = el.value.replace(/[^0-9.]/g, '');
-    el.value = r ? parseFloat(r).toLocaleString('en-US') : '';
+    const val = parseLocaleNumber(el.value);
+    if (val === 0 && el.value.trim() === '') return;
+    // نمایش مجدد به صورت فارسی و ۳ رقم ۳ رقم
+    el.value = val.toLocaleString('fa-IR');
 }
 
 // تغییر تب‌ها (Navigation)

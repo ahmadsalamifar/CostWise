@@ -11,16 +11,11 @@ export function setupMaterials(refreshCallback) {
     document.getElementById('sort-materials').onchange = () => renderMaterials();
     document.getElementById('btn-add-relation').onclick = addRelationRow;
     
-    // تریگرها
     const baseUnitSelect = document.getElementById('mat-base-unit-select');
     if(baseUnitSelect) baseUnitSelect.onchange = updateUnitDropdowns;
     
-    // تریگر محاسبه ضریب اسکرپر
     const scraperUnit = document.getElementById('mat-scraper-unit');
-    const priceUnit = document.getElementById('mat-price-unit');
-    
     if(scraperUnit) scraperUnit.onchange = calculateScraperFactor;
-    if(priceUnit) priceUnit.onchange = calculateScraperFactor; // اگر واحد خرید عوض شد هم دوباره حساب کن
     
     const scraperBtn = document.getElementById('btn-scraper-trigger');
     if(scraperBtn) scraperBtn.onclick = async () => {
@@ -47,48 +42,6 @@ export function setupMaterials(refreshCallback) {
     };
 }
 
-// --- محاسبات هوشمند ---
-
-// ضریب تبدیل هر واحد نسبت به پایه را حساب می‌کند
-function getFactorToBase(unitName) {
-    const baseElem = document.getElementById('mat-base-unit-select');
-    const baseUnit = baseElem ? baseElem.value : '';
-    
-    if (unitName === baseUnit) return 1;
-    
-    const rel = currentUnitRelations.find(r => r.name === unitName);
-    if (!rel) return 1; // اگر پیدا نشد پیش‌فرض ۱
-
-    // فرمول: (تعداد پایه) / (تعداد فرعی)
-    // مثال: 15.5 کیلو = 1 شاخه. ضریب کیلو = 1/15.5
-    return rel.qtyBase / rel.qtyUnit;
-}
-
-function calculateScraperFactor() {
-    const sSelect = document.getElementById('mat-scraper-unit');
-    const pSelect = document.getElementById('mat-price-unit');
-    const factorInput = document.getElementById('mat-scraper-factor');
-    
-    if(!sSelect || !pSelect || !factorInput) return;
-    
-    const sUnit = sSelect.value; // واحد سایت (مثلا کیلوگرم)
-    const pUnit = pSelect.value; // واحد خرید ما (مثلا شاخه)
-    
-    const sFactor = getFactorToBase(sUnit);
-    const pFactor = getFactorToBase(pUnit);
-    
-    let rate = 1;
-    if (sFactor !== 0) {
-        // فرمول: ضریب خرید / ضریب سایت
-        // مثال: خرید=شاخه(1)، سایت=کیلو(1/15.5) -> 1 / 0.0645 = 15.5
-        rate = pFactor / sFactor;
-    }
-    
-    console.log(`Scraper Calc: Site=${sUnit}(${sFactor}), Buy=${pUnit}(${pFactor}) => Rate=${rate}`);
-    factorInput.value = rate; 
-}
-
-// --- تابع نمایش گزارش (Pop-up) ---
 function showScraperReport(report) {
     const existing = document.getElementById('report-modal');
     if(existing) existing.remove();
@@ -102,11 +55,10 @@ function showScraperReport(report) {
             if(item.status === 'success') style = { bg: 'bg-emerald-50', border: 'border-emerald-200', icon: '✅', text: 'text-emerald-700' };
             if(item.status === 'error') style = { bg: 'bg-rose-50', border: 'border-rose-200', icon: '❌', text: 'text-rose-700' };
             
-            // نمایش متن خام
-            const debugInfo = item.raw_text 
-                ? `<div class="bg-white/50 p-1 rounded mt-1 text-[10px] font-mono text-slate-500 truncate" title="${item.raw_text}">یافت شد: "${item.raw_text}"</div>` 
-                : '';
-
+            // فرمت فارسی قیمت‌ها در گزارش
+            const oldP = formatPrice(item.old || 0);
+            const newP = formatPrice(item.new || 0);
+            
             content += `
             <div class="border rounded-lg p-3 mb-2 ${style.bg} ${style.border} text-sm">
                 <div class="flex justify-between font-bold ${style.text} mb-1">
@@ -114,9 +66,8 @@ function showScraperReport(report) {
                     <span class="text-[10px] opacity-70 uppercase border px-1 rounded bg-white">${item.status}</span>
                 </div>
                 <div class="text-xs text-slate-600">${item.msg}</div>
-                ${debugInfo}
                 ${item.detail ? `<div class="mt-1 pt-1 border-t border-slate-200/50 text-[10px] font-mono text-slate-500 dir-ltr text-left">${item.detail}</div>` : ''}
-                ${item.status === 'success' ? `<div class="flex justify-between mt-1 text-xs font-bold"><span class="text-rose-400 line-through">${item.old}</span> <span>➝</span> <span class="text-emerald-600">${item.new}</span></div>` : ''}
+                ${item.status === 'success' ? `<div class="flex justify-between mt-1 text-xs font-bold"><span class="text-rose-400 line-through">${oldP} تومان</span> <span>➝</span> <span class="text-emerald-600">${newP} تومان</span></div>` : ''}
             </div>`;
         });
     }
@@ -224,14 +175,16 @@ function updateUnitDropdowns() {
     calculateScraperFactor();
 }
 
+function calculateScraperFactor() {
+    const el = document.getElementById('mat-scraper-factor');
+    if(el) el.value = 1; 
+}
+
 // --- CRUD ---
 
 async function saveMaterial(cb) {
     const id = document.getElementById('mat-id').value;
     
-    // محاسبه نهایی قبل از ذخیره برای اطمینان
-    calculateScraperFactor();
-
     const data = {
         name: document.getElementById('mat-name').value,
         display_name: document.getElementById('mat-display-name').value || null,
@@ -241,7 +194,7 @@ async function saveMaterial(cb) {
         scraper_anchor: document.getElementById('mat-scraper-anchor').value || null,
         purchase_unit: document.getElementById('mat-price-unit').value, 
         consumption_unit: document.getElementById('mat-price-unit').value, 
-        scraper_factor: parseFloat(document.getElementById('mat-scraper-factor').value) || 1, // اینجا مقدار درست ذخیره می‌شود
+        scraper_factor: parseFloat(document.getElementById('mat-scraper-factor').value) || 1,
         unit_relations: JSON.stringify({
             base: document.getElementById('mat-base-unit-select').value,
             others: currentUnitRelations,
@@ -309,8 +262,9 @@ export function renderMaterials(filter='') {
             <div class="font-bold text-sm text-slate-800 truncate mt-1">${m.name}</div>
             <div class="flex justify-between items-end mt-3 pt-2 border-t border-dashed border-slate-100">
                 <div class="text-right w-full">
-                     <span class="font-mono font-bold text-teal-700 text-lg">${formatPrice(m.price)}</span>
-                     <span class="text-[10px] text-slate-400 mr-1">/${priceUnit}</span>
+                     <!-- قیمت فارسی، بدون اعشار و با کلمه تومان -->
+                     <span class="font-bold text-teal-700 text-lg">${formatPrice(m.price)} تومان</span>
+                     <span class="text-[10px] text-slate-400 mr-1">/ ${priceUnit}</span>
                 </div>
             </div>
         </div>`;
@@ -318,7 +272,10 @@ export function renderMaterials(filter='') {
     
     el.querySelectorAll('.btn-edit-mat').forEach(b => b.onclick = () => editMat(b.dataset.id));
     el.querySelectorAll('.btn-del-mat').forEach(b => b.onclick = async () => {
-        if(confirm('حذف؟')) { try { await api.delete(APPWRITE_CONFIG.COLS.MATS, b.dataset.id); refreshCallback(); } catch(e) { alert(e.message); } }
+        if(confirm('حذف؟')) {
+            try { await api.delete(APPWRITE_CONFIG.COLS.MATS, b.dataset.id); refreshCallback(); }
+            catch(e) { alert(e.message); }
+        }
     });
 }
 
@@ -345,7 +302,6 @@ function editMat(id) {
         renderRelationsUI();
         updateUnitDropdowns();
         
-        // انتخاب مقادیر ذخیره شده
         if(rels.price_unit) document.getElementById('mat-price-unit').value = rels.price_unit;
         else if(m.purchase_unit) document.getElementById('mat-price-unit').value = m.purchase_unit;
 
@@ -354,10 +310,12 @@ function editMat(id) {
         calculateScraperFactor(); 
 
     } catch(e) {
+        console.error("Error parsing unit relations", e);
         currentUnitRelations = [];
         renderRelationsUI();
     }
     
+    // نمایش قیمت فارسی در اینپوت ویرایش
     document.getElementById('mat-price').value = formatPrice(m.price);
     document.getElementById('mat-scraper-url').value = m.scraper_url || '';
     document.getElementById('mat-scraper-anchor').value = m.scraper_anchor || '';
@@ -375,6 +333,7 @@ function resetMatForm() {
     currentUnitRelations = [];
     renderRelationsUI();
     updateUnitDropdowns();
+    
     const btn = document.getElementById('mat-submit-btn');
     if(btn) btn.innerText = 'ذخیره کالا';
     document.getElementById('mat-cancel-btn').classList.add('hidden');
