@@ -14,24 +14,29 @@ export function setupCategories(refreshCallback) {
         addItem(APPWRITE_CONFIG.COLS.UNITS, 'unit-name', refreshCallback); 
     };
 
-    // --- ویژگی جدید: دکمه بکاپ در مدیریت داده‌ها ---
-    const backupContainer = document.getElementById('backup-container');
-    // اگر کانتینر اختصاصی در HTML نداشتید، به هدر این بخش اضافه می‌کنیم
-    if(!document.getElementById('btn-full-backup')) {
-        // پیدا کردن جایی برای دکمه (مثلاً کنار فرم واحدها یا یک بخش جدید)
-        const target = document.getElementById('tab-categories');
-        if(target) {
-            const btn = document.createElement('button');
-            btn.id = 'btn-full-backup';
-            btn.className = 'btn btn-secondary w-full mt-6 border-slate-300 bg-white text-slate-600 shadow-sm';
-            btn.innerHTML = '💾 دانلود نسخه پشتیبان کامل (Full Backup)';
-            btn.onclick = exportDatabase;
-            target.appendChild(btn);
-        }
+    // --- اضافه کردن دکمه بکاپ به صفحه مدیریت داده‌ها ---
+    // بررسی می‌کنیم دکمه تکراری نسازیم
+    const container = document.getElementById('tab-categories');
+    if(container && !document.getElementById('btn-full-backup')) {
+        const wrapper = document.createElement('div');
+        wrapper.className = "max-w-4xl mx-auto mt-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center";
+        
+        wrapper.innerHTML = `
+            <h3 class="font-bold text-slate-700 mb-2 text-sm">پشتیبان‌گیری و بازنشانی</h3>
+            <p class="text-xs text-slate-400 mb-4">دانلود تمام اطلاعات (کالاها، فرمول‌ها، واحدها) در یک فایل JSON</p>
+            <button id="btn-full-backup" class="btn btn-primary w-full md:w-1/3 mx-auto flex gap-2">
+                <span>💾</span> دانلود فایل بکاپ
+            </button>
+        `;
+        container.appendChild(wrapper);
+        
+        // اتصال رویداد کلیک
+        setTimeout(() => {
+             document.getElementById('btn-full-backup').onclick = exportDatabase;
+        }, 100);
     }
 }
 
-// تابع بکاپ‌گیری
 function exportDatabase() {
     const data = {
         timestamp: new Date().toISOString(),
@@ -45,7 +50,7 @@ function exportDatabase() {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", "simorgh_backup_" + new Date().toISOString().split('T')[0] + ".json");
+    downloadAnchorNode.setAttribute("download", "simorgh_full_backup_" + new Date().toISOString().split('T')[0] + ".json");
     document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
