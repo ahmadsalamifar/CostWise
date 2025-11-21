@@ -34,21 +34,20 @@ export function setupMaterials(refreshCallback) {
     // 4. اسکرپر
     Scraper.setupScraperListeners(refreshCallback);
 
-    // 5. دکمه مثبت (اکنون استاتیک در HTML است)
+    // 5. دکمه مثبت
     const btnNew = document.getElementById('btn-new-mat-plus');
     if(btnNew) {
         btnNew.onclick = () => {
             resetMatForm();
-            // اسکرول به بالا برای موبایل
             document.getElementById('tab-materials').scrollIntoView({behavior:'smooth'});
             setTimeout(() => document.getElementById('mat-name').focus(), 300);
         };
     }
 
-    // 6. اصلاح باگ اینپوت قیمت
+    // 6. اینپوت قیمت
     setupPriceInput();
 
-    // 7. ستاپ دکمه‌های تاگل (ریال/تومان)
+    // 7. تاگل ارز
     setupCurrencyToggle();
 }
 
@@ -84,7 +83,11 @@ function setupPriceInput() {
 async function saveMaterial(cb) {
     const id = document.getElementById('mat-id').value;
     
+    // دریافت اطلاعات واحدها
     const unitData = Units.getUnitData();
+    // === FIX: اضافه کردن تنظیمات ارز به آبجکت JSON واحدها (برای جلوگیری از خطای دیتابیس) ===
+    unitData.scraper_currency = document.getElementById('mat-scraper-currency').value || 'toman';
+
     const purchaseUnitVal = unitData.selected_purchase || unitData.base || 'عدد';
     const consumptionUnitVal = unitData.selected_consumption || purchaseUnitVal;
 
@@ -104,7 +107,7 @@ async function saveMaterial(cb) {
         consumption_unit: consumptionUnitVal,
         
         scraper_factor: parseFloat(document.getElementById('mat-scraper-factor').value) || 1,
-        scraper_currency: document.getElementById('mat-scraper-currency').value || 'toman', // ذخیره وضعیت ارز
+        // scraper_currency حذف شد چون در unit_relations ذخیره می‌شود
         has_tax: document.getElementById('mat-has-tax').checked,
         
         unit_relations: JSON.stringify(unitData)
@@ -214,15 +217,16 @@ function editMat(id) {
     document.getElementById('mat-scraper-anchor').value = m.scraper_anchor || '';
     document.getElementById('mat-scraper-factor').value = m.scraper_factor || 1;
 
-    // بارگذاری وضعیت ارز (تومان/ریال)
-    const currency = m.scraper_currency || 'toman';
-    document.getElementById('mat-scraper-currency').value = currency;
-    document.querySelectorAll('.currency-toggle .currency-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.val === currency);
-    });
-
+    // بازیابی وضعیت ارز از درون JSON
     try {
         const rels = JSON.parse(m.unit_relations || '{}');
+        const currency = rels.scraper_currency || 'toman'; // خواندن از JSON
+        document.getElementById('mat-scraper-currency').value = currency;
+        
+        document.querySelectorAll('.currency-toggle .currency-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.val === currency);
+        });
+        
         Units.setUnitData(rels);
     } catch(e) { Units.resetUnitData(); }
 
@@ -237,7 +241,6 @@ function resetMatForm() {
     document.getElementById('material-form').reset();
     document.getElementById('mat-id').value = '';
     
-    // ریست تاگل به تومان
     document.getElementById('mat-scraper-currency').value = 'toman';
     document.querySelectorAll('.currency-toggle .currency-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.val === 'toman');
