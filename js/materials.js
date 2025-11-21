@@ -34,49 +34,46 @@ export function setupMaterials(refreshCallback) {
     // 4. اسکرپر
     Scraper.setupScraperListeners(refreshCallback);
 
-    // 5. دکمه مثبت (New)
-    setupAddButton();
-
-    // 6. اصلاح باگ اینپوت قیمت (مهم)
-    setupPriceInput();
-}
-
-function setupAddButton() {
-    const sidebarHeader = document.querySelector('#tab-materials h3');
-    if(sidebarHeader && !document.getElementById('btn-new-mat-plus')) {
-        const container = document.createElement('div');
-        container.className = "flex items-center justify-between w-full mb-2";
-        sidebarHeader.parentNode.insertBefore(container, sidebarHeader);
-        container.appendChild(sidebarHeader);
-        
-        const btn = document.createElement('button');
-        btn.id = 'btn-new-mat-plus';
-        btn.type = 'button';
-        btn.className = 'bg-emerald-500 text-white rounded-lg w-8 h-8 flex items-center justify-center text-xl font-bold shadow hover:bg-emerald-600 transition-colors pb-1';
-        btn.innerHTML = '+';
-        btn.onclick = () => {
+    // 5. دکمه مثبت (اکنون استاتیک در HTML است)
+    const btnNew = document.getElementById('btn-new-mat-plus');
+    if(btnNew) {
+        btnNew.onclick = () => {
             resetMatForm();
             // اسکرول به بالا برای موبایل
             document.getElementById('tab-materials').scrollIntoView({behavior:'smooth'});
             setTimeout(() => document.getElementById('mat-name').focus(), 300);
         };
-        container.appendChild(btn);
     }
+
+    // 6. اصلاح باگ اینپوت قیمت
+    setupPriceInput();
+
+    // 7. ستاپ دکمه‌های تاگل (ریال/تومان)
+    setupCurrencyToggle();
 }
 
-// حل مشکل باگ تایپ قیمت: استفاده از Focus/Blur
+function setupCurrencyToggle() {
+    const btns = document.querySelectorAll('.currency-toggle .currency-btn');
+    const input = document.getElementById('mat-scraper-currency');
+    
+    btns.forEach(btn => {
+        btn.onclick = () => {
+            btns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            input.value = btn.dataset.val;
+        };
+    });
+}
+
 function setupPriceInput() {
     const priceInput = document.getElementById('mat-price');
     if(priceInput) {
-        // وقتی فوکوس شد، عدد انگلیسی خام نمایش بده تا کاربر راحت ادیت کنه
         priceInput.onfocus = (e) => {
             const val = parseLocaleNumber(e.target.value);
-            if(val !== 0) e.target.value = val; // نمایش عدد ساده
+            if(val !== 0) e.target.value = val; 
             else e.target.value = '';
             e.target.select();
         };
-        
-        // وقتی فوکوس برداشته شد، فرمت پول (۳ رقم ۳ رقم) اعمال کن
         priceInput.onblur = (e) => {
             const val = parseLocaleNumber(e.target.value);
             e.target.value = val > 0 ? formatPrice(val) : ''; 
@@ -107,6 +104,7 @@ async function saveMaterial(cb) {
         consumption_unit: consumptionUnitVal,
         
         scraper_factor: parseFloat(document.getElementById('mat-scraper-factor').value) || 1,
+        scraper_currency: document.getElementById('mat-scraper-currency').value || 'toman', // ذخیره وضعیت ارز
         has_tax: document.getElementById('mat-has-tax').checked,
         
         unit_relations: JSON.stringify(unitData)
@@ -135,7 +133,6 @@ export function renderMaterials(filter='') {
     
     let list = state.materials.filter(m => m.name.includes(filter) || (m.display_name && m.display_name.includes(filter)));
     
-    // مرتب‌سازی
     list.sort((a,b) => {
         if(sort === 'price_desc') return b.price - a.price;
         if(sort === 'price_asc') return a.price - b.price;
@@ -155,7 +152,6 @@ export function renderMaterials(filter='') {
         const cat = state.categories.find(c => c.$id === m.category_id)?.name || '-';
         const pUnit = m.purchase_unit || m.unit || 'واحد'; 
         
-        // وضعیت لینک اسکرپر
         const hasLink = m.scraper_url && m.scraper_url.length > 5;
         const linkIcon = hasLink ? `<a href="${m.scraper_url}" target="_blank" class="text-blue-500 hover:text-blue-700 ml-1 text-lg" title="مشاهده منبع قیمت">🔗</a>` : '';
 
@@ -212,11 +208,18 @@ function editMat(id) {
     document.getElementById('mat-has-tax').checked = !!m.has_tax; 
     
     const pInput = document.getElementById('mat-price');
-    if(pInput) pInput.value = formatPrice(m.price); // مقدار اولیه
+    if(pInput) pInput.value = formatPrice(m.price);
     
     document.getElementById('mat-scraper-url').value = m.scraper_url || '';
     document.getElementById('mat-scraper-anchor').value = m.scraper_anchor || '';
     document.getElementById('mat-scraper-factor').value = m.scraper_factor || 1;
+
+    // بارگذاری وضعیت ارز (تومان/ریال)
+    const currency = m.scraper_currency || 'toman';
+    document.getElementById('mat-scraper-currency').value = currency;
+    document.querySelectorAll('.currency-toggle .currency-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.val === currency);
+    });
 
     try {
         const rels = JSON.parse(m.unit_relations || '{}');
@@ -227,13 +230,19 @@ function editMat(id) {
     if(btn) btn.innerText = 'ذخیره تغییرات';
     document.getElementById('mat-cancel-btn').classList.remove('hidden');
     
-    // باز کردن سایدبار در موبایل اگر بسته بود
     if(window.innerWidth < 768) document.getElementById('tab-materials').scrollIntoView({behavior:'smooth'});
 }
 
 function resetMatForm() {
     document.getElementById('material-form').reset();
     document.getElementById('mat-id').value = '';
+    
+    // ریست تاگل به تومان
+    document.getElementById('mat-scraper-currency').value = 'toman';
+    document.querySelectorAll('.currency-toggle .currency-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.val === 'toman');
+    });
+
     Units.resetUnitData();
     
     const btn = document.getElementById('mat-submit-btn');

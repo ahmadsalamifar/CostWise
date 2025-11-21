@@ -2,19 +2,22 @@ import { api } from './api.js';
 import { formatPrice } from './utils.js';
 
 export function setupScraperListeners(refreshCallback) {
+    // دکمه بروزرسانی کلی (اکنون در HTML است، پس فقط لیسنر را وصل می‌کنیم)
     const bulkScraperBtn = document.getElementById('btn-scraper-trigger');
     if(bulkScraperBtn) {
+        // حذف لیسنرهای قبلی با کلون کردن
         const newBtn = bulkScraperBtn.cloneNode(true);
         bulkScraperBtn.parentNode.replaceChild(newBtn, bulkScraperBtn);
         
         newBtn.onclick = async () => {
             if(!confirm('آیا می‌خواهید قیمت تمام کالاهای لینک‌دار را بروزرسانی کنید؟')) return;
             
-            newBtn.innerText = '⏳ استعلام کلی...';
+            newBtn.innerHTML = '⏳ <span class="hidden sm:inline">در حال دریافت...</span>';
             newBtn.disabled = true;
             newBtn.classList.add('opacity-70');
 
             try {
+                // ارسال درخواست بالک (ارز در دیتابیس ذخیره شده و فانکشن از آنجا می‌خواند)
                 const result = await api.runScraper({ type: 'bulk' }); 
                 if(result.success && result.report) {
                     showScraperReport(result.report); 
@@ -25,7 +28,7 @@ export function setupScraperListeners(refreshCallback) {
             } 
             catch(e) { alert('خطا: ' + e.message); } 
             finally { 
-                newBtn.innerText = '🤖 بروزرسانی قیمت‌ها'; 
+                newBtn.innerHTML = '🤖 <span class="hidden sm:inline">بروزرسانی</span>'; 
                 newBtn.disabled = false;
                 newBtn.classList.remove('opacity-70');
             }
@@ -39,36 +42,41 @@ function setupTestLinkButton() {
     const urlInput = document.getElementById('mat-scraper-url');
     if(urlInput && !document.getElementById('btn-test-link')) {
         const parent = urlInput.parentElement; 
-        const rowWrapper = document.createElement('div');
-        rowWrapper.className = "flex gap-2 items-center w-full";
-        parent.insertBefore(rowWrapper, urlInput);
-        rowWrapper.appendChild(urlInput);
+        // دکمه تست را داخل فلکس باکس لینک قرار می‌دهیم
         
         const testBtn = document.createElement('button');
         testBtn.id = 'btn-test-link';
         testBtn.type = 'button';
-        testBtn.className = 'bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 px-3 rounded-lg h-10 text-xs font-bold shrink-0 transition-colors whitespace-nowrap';
+        testBtn.className = 'bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 px-3 rounded-lg h-9 text-xs font-bold shrink-0 transition-colors whitespace-nowrap';
         testBtn.innerHTML = '⚡ تست';
         
-        rowWrapper.appendChild(testBtn);
+        parent.appendChild(testBtn);
 
         testBtn.onclick = async () => {
             const url = urlInput.value;
             const anchor = document.getElementById('mat-scraper-anchor').value;
             const factor = parseFloat(document.getElementById('mat-scraper-factor').value) || 1;
+            const currencyMode = document.getElementById('mat-scraper-currency').value || 'toman'; // خواندن مقدار تاگل
             
             if(!url) { alert('لطفاً لینک را وارد کنید'); return; }
             
             const originalText = testBtn.innerHTML;
-            testBtn.innerText = '⏳ ...';
+            testBtn.innerText = '⏳';
             testBtn.disabled = true;
             
             try {
-                const res = await api.runScraper({ type: 'single_check', url, anchor, factor });
+                const res = await api.runScraper({ 
+                    type: 'single_check', 
+                    url, 
+                    anchor, 
+                    factor,
+                    currencyMode // ارسال به سرور
+                });
+                
                 if(res.success && res.data) {
                     const p = res.data;
-                    // نمایش جزئیات برای دیباگ بهتر
-                    alert(`✅ قیمت نهایی: ${formatPrice(p.final_price)} تومان\n\n(قیمت سایت: ${formatPrice(p.found_price)} × ضریب: ${factor})`);
+                    const modeText = currencyMode === 'rial' ? 'ریال (تبدیل به تومان)' : 'تومان';
+                    alert(`✅ قیمت نهایی: ${formatPrice(p.final_price)} تومان\n\n(قیمت سایت: ${formatPrice(p.found_price)} | واحد: ${modeText})`);
                     
                     document.getElementById('mat-price').value = formatPrice(p.final_price);
                     const pInput = document.getElementById('mat-price');
@@ -102,9 +110,8 @@ function showScraperReport(report) {
             if(item.status === 'success') {
                 style = { bg: 'bg-emerald-50', border: 'border-emerald-200', icon: '✅' };
                 successCount++;
-                // نمایش جزئیات قیمت خام و ضریب
-                if(item.found && item.factor && item.factor !== 1) {
-                    detail = `<div class="mt-1 text-[9px] text-slate-400">سایت: ${formatPrice(item.found)} × ضریب ${item.factor}</div>`;
+                if(item.found && item.factor) {
+                    detail = `<div class="mt-1 text-[9px] text-slate-400">سایت: ${formatPrice(item.found)} | ${item.msg}</div>`;
                 }
             }
             if(item.status === 'error') style = { bg: 'bg-rose-50', border: 'border-rose-200', icon: '❌' };
