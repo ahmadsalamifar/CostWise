@@ -1,4 +1,6 @@
 // مدیریت فرم ورود اطلاعات مواد
+// اضافه شدن ایمپورت state برای دسترسی به دسته‌بندی‌ها
+import { state } from '../../core/config.js';
 import { formatPrice, parseLocaleNumber } from '../../core/utils.js';
 import * as Units from './materials_units.js';
 
@@ -13,7 +15,7 @@ export function setupFormListeners(onSubmit) {
     
     document.getElementById('mat-cancel-btn')?.addEventListener('click', resetForm);
     setupPriceInputFormat();
-    setupCurrencyToggle(); // راه‌اندازی دکمه‌های ریال/تومان
+    setupCurrencyToggle();
 }
 
 function setupCurrencyToggle() {
@@ -33,7 +35,6 @@ function setupCurrencyToggle() {
 
 function collectFormData() {
     const unitData = Units.getUnitData(); 
-    // اضافه کردن واحد پولی به دیتای واحدها (چون فیلد جداگانه در دیتابیس ندارد)
     unitData.scraper_currency = document.getElementById('mat-scraper-currency').value || 'toman';
 
     const rawPrice = document.getElementById('mat-price').value;
@@ -46,7 +47,6 @@ function collectFormData() {
         unit_relations: JSON.stringify(unitData),
         has_tax: document.getElementById('mat-has-tax').checked,
         
-        // فیلدهای اسکرپر
         scraper_url: document.getElementById('mat-scraper-url').value,
         scraper_anchor: document.getElementById('mat-scraper-anchor').value,
         scraper_factor: parseFloat(document.getElementById('mat-scraper-factor').value) || 1
@@ -54,7 +54,9 @@ function collectFormData() {
 }
 
 export function populateForm(m) {
-    // 1. اطلاعات پایه
+    // --- بروزرسانی لیست دسته‌ها قبل از مقداردهی ---
+    updateCategorySelect();
+
     document.getElementById('mat-id').value = m.$id;
     document.getElementById('mat-name').value = m.name;
     document.getElementById('mat-display-name').value = m.display_name || '';
@@ -62,12 +64,10 @@ export function populateForm(m) {
     document.getElementById('mat-price').value = formatPrice(m.price);
     document.getElementById('mat-has-tax').checked = !!m.has_tax;
     
-    // 2. اطلاعات اسکرپر (لینک و ...) - بخش جدید
     document.getElementById('mat-scraper-url').value = m.scraper_url || '';
     document.getElementById('mat-scraper-anchor').value = m.scraper_anchor || '';
     document.getElementById('mat-scraper-factor').value = m.scraper_factor || 1;
 
-    // 3. بازیابی واحدها و ارز
     try {
         let rels = m.unit_relations;
         if (typeof rels === 'string') rels = JSON.parse(rels);
@@ -75,7 +75,6 @@ export function populateForm(m) {
 
         Units.setUnitData(rels);
 
-        // تنظیم ارز (ریال/تومان)
         const currency = rels.scraper_currency || 'toman';
         document.getElementById('mat-scraper-currency').value = currency;
         document.querySelectorAll('.currency-toggle .currency-btn').forEach(btn => {
@@ -86,21 +85,21 @@ export function populateForm(m) {
         Units.resetUnitData(); 
     }
 
-    // 4. تغییر حالت دکمه‌ها
     document.getElementById('mat-cancel-btn').classList.remove('hidden');
     document.getElementById('mat-submit-btn').innerText = 'ذخیره تغییرات';
     
-    // اسکرول به فرم در موبایل
     if(window.innerWidth < 1024) {
         document.getElementById('material-form')?.scrollIntoView({ behavior: 'smooth' });
     }
 }
 
 export function resetForm() {
+    // --- بروزرسانی لیست دسته‌ها برای فرم خام ---
+    updateCategorySelect();
+
     document.getElementById('material-form').reset();
     document.getElementById('mat-id').value = '';
     
-    // ریست دکمه‌های ارز
     document.getElementById('mat-scraper-currency').value = 'toman';
     document.querySelectorAll('.currency-toggle .currency-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.val === 'toman');
@@ -109,6 +108,18 @@ export function resetForm() {
     document.getElementById('mat-cancel-btn').classList.add('hidden');
     document.getElementById('mat-submit-btn').innerText = 'ذخیره کالا';
     Units.resetUnitData();
+}
+
+// تابع جدید برای پر کردن دراپ‌داون دسته‌بندی
+function updateCategorySelect() {
+    const el = document.getElementById('mat-category');
+    if (!el) return;
+    
+    let html = '<option value="">دسته‌بندی...</option>';
+    if (state.categories && state.categories.length > 0) {
+        html += state.categories.map(c => `<option value="${c.$id}">${c.name}</option>`).join('');
+    }
+    el.innerHTML = html;
 }
 
 function setupPriceInputFormat() {
