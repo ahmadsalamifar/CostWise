@@ -1,161 +1,83 @@
-import { account, state } from './config.js';
-import { fetchAllData } from './api.js';
-import { switchTab, formatPrice, parseLocaleNumber } from './utils.js';
-import * as Formulas from './formulas.js';
-import * as Materials from './materials.js';
-import * as Categories from './categories.js';
-import * as Store from './store.js';
-import * as Print from './print.js';
+// نقطه ورود برنامه (نسخه نهایی و اصلاح شده)
+import { account, state, APPWRITE_CONFIG, Query } from './core/config.js';
+import { api } from './core/api.js';
+import { switchTab, toggleElement } from './core/utils.js';
+import { setupPrint } from './print.js'; 
 
-async function refreshApp() {
-    try { await fetchAllData(); updateUI(); } catch (e) { console.error("Refresh failed:", e); }
-}
+// ایمپورت ماژول‌های جدید از پوشه features
+import * as MaterialController from './features/materials/materialController.js';
+import * as FormulaController from './features/formulas/formulaController.js';
+import * as SettingsController from './features/settings/settingsController.js';
+import * as StoreController from './features/store/storeController.js';
 
-function updateUI() {
-    // رفرش کردن لیست‌ها
-    Formulas.renderFormulaList();
-    Materials.renderMaterials();
-    Categories.renderCategories(refreshApp);
-    Store.renderStore(refreshApp);
-    
-    // اگر فرمولی باز بود، رفرش شود
-    if (state.activeFormulaId) {
-        const f = state.formulas.find(x => x.$id === state.activeFormulaId);
-        if (f) Formulas.renderFormulaDetail(f);
-        else {
-            state.activeFormulaId = null;
-            document.getElementById('formula-detail-view')?.classList.add('hidden');
-            document.getElementById('formula-detail-view')?.classList.remove('flex');
-            document.getElementById('formula-detail-empty')?.classList.remove('hidden');
-        }
-    }
-    
-    Formulas.updateDropdowns();
-    Formulas.updateCompSelect();
-    updateMatCatDropdown();
-}
-
-function updateMatCatDropdown() {
-    const matCat = document.getElementById('mat-category');
-    if (!matCat) return;
-    const val = matCat.value;
-    const options = state.categories.map(x => `<option value="${x.$id}">${x.name}</option>`).join('');
-    matCat.innerHTML = '<option value="">بدون دسته</option>' + options;
-    matCat.value = val;
-}
-
-document.addEventListener('DOMContentLoaded', async () => {
+async function initApp() {
     try {
-        try { await account.get(); } catch { await account.createAnonymousSession(); }
-        await fetchAllData();
-        
-        // نمایش UI پس از لود دیتا
-        const loadingScreen = document.getElementById('loading-screen');
-        if(loadingScreen) loadingScreen.classList.add('hidden');
-        
-        const appContent = document.getElementById('app-content');
-        if(appContent) appContent.classList.remove('hidden');
-        
-        // --- اصلاح خطا: مدیریت تب‌ها ---
-        // 'store' را از این لیست حذف کردیم چون دکمه تب ندارد (دکمه جداگانه دارد)
-        const tabs = ['formulas', 'materials', 'categories']; 
-        
-        tabs.forEach(t => {
-             const btn = document.getElementById('btn-tab-' + t);
-             // چک کردن وجود دکمه برای جلوگیری از خطای Cannot set properties of null
-             if (btn) {
-                 btn.onclick = () => switchTab(t);
-             }
-        });
+        // 1. احراز هویت
+        try { await account.get(); } 
+        catch { await account.createAnonymousSession(); }
 
-        // دکمه فروشگاه جداگانه هندل می‌شود
-        const btnStore = document.getElementById('btn-open-store');
-        if (btnStore) btnStore.onclick = () => switchTab('store');
-
-        // راه‌اندازی ماژول‌ها
-        Formulas.setupFormulas(refreshApp);
-        Materials.setupMaterials(refreshApp);
-        Categories.setupCategories(refreshApp);
-        Store.setupStore(refreshApp);
-        Print.setupPrint();
+        // 2. دریافت دیتا
+        await refreshData();
         
-        setupGlobalPriceInputs();
-        updateUI();
+        // 3. راه‌اندازی ماژول‌ها
+        FormulaController.init(refreshApp);
+        MaterialController.init(refreshApp);
+        SettingsController.init(refreshApp);
+        StoreController.init(refreshApp); // اگر تابع init دارد
+        
+        setupPrint(); 
+
+        // 4. نمایش UI
+        toggleElement('loading-screen', false);
+        toggleElement('app-content', true);
+        
+        setupTabs();
+        
+        // پیش‌فرض تب اول
         switchTab('formulas');
-        
+
     } catch (err) {
         console.error(err);
-        const loadingText = document.getElementById('loading-text');
-        if(loadingText) {
-            loadingText.innerText = "خطا در اتصال: " + err.message;
-            loadingText.className = 'text-rose-500 text-sm font-bold';
-        }
+        document.getElementById('loading-text').innerText = "خطا: " + err.message;
     }
-});
-
-function setupGlobalPriceInputs() {
-    document.querySelectorAll('.price-input').forEach(el => {
-        el.addEventListener('focus', (e) => {
-            const val = parseLocaleNumber(e.target.value);
-            e.target.value = val !== 0 ? val : '';
-            e.target.select();
-        });
-        el.addEventListener('blur', (e) => {
-             const val = parseLocaleNumber(e.target.value);
-             if (val !== 0 || e.target.value.trim() !== '') e.target.value = formatPrice(val);
-        });
-    });
 }
 
-// --- منطق نمودارها ---
-let stockChart = null;
-let categoryChart = null;
+async function refreshData() {
+    // دریافت همزمان تمام داده‌ها
+    const [c, u, m, f] = await Promise.all([
+        api.list(APPWRITE_CONFIG.COLS.CATS, [Query.limit(100)]),
+        api.list(APPWRITE_CONFIG.COLS.UNITS, [Query.limit(100)]),
+        api.list(APPWRITE_CONFIG.COLS.MATS, [Query.limit(5000)]),
+        api.list(APPWRITE_CONFIG.COLS.FORMS, [Query.limit(500)])
+    ]);
 
-function renderReports() {
-    const ctxStock = document.getElementById('chart-stock-value');
-    const ctxCat = document.getElementById('chart-categories');
+    state.categories = c.documents;
+    state.units = u.documents;
+    state.materials = m.documents;
+    state.formulas = f.documents;
     
-    if (typeof Chart === 'undefined' || !ctxStock || !ctxCat) return;
-
-    // داده‌های موجودی انبار
-    const topStock = state.materials
-        .map(m => ({ name: m.name, value: (m.stock || 0) * (m.avg_price || 0) }))
-        .filter(m => m.value > 0)
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 10);
-
-    // داده‌های دسته‌بندی
-    const catStats = {};
-    state.materials.forEach(m => {
-        const catName = state.categories.find(c => c.$id === m.category_id)?.name || 'سایر';
-        catStats[catName] = (catStats[catName] || 0) + 1;
-    });
-
-    if (stockChart) stockChart.destroy();
-    stockChart = new Chart(ctxStock, {
-        type: 'bar',
-        data: {
-            labels: topStock.map(x => x.name),
-            datasets: [{
-                label: 'ارزش موجودی (تومان)',
-                data: topStock.map(x => x.value),
-                backgroundColor: '#0d9488',
-                borderRadius: 5
-            }]
-        },
-        options: { responsive: true, fontFamily: 'Vazirmatn' }
-    });
-
-    if (categoryChart) categoryChart.destroy();
-    categoryChart = new Chart(ctxCat, {
-        type: 'doughnut',
-        data: {
-            labels: Object.keys(catStats),
-            datasets: [{
-                data: Object.values(catStats),
-                backgroundColor: ['#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa']
-            }]
-        },
-        options: { responsive: true, fontFamily: 'Vazirmatn' }
-    });
+    updateAllUI();
 }
+
+function updateAllUI() {
+    MaterialController.renderMaterials();
+    FormulaController.renderFormulaList();
+    SettingsController.renderSettings(refreshApp);
+    StoreController.renderStore(refreshApp);
+}
+
+function setupTabs() {
+    ['formulas', 'materials', 'categories'].forEach(t => {
+        const btn = document.getElementById('btn-tab-' + t);
+        if(btn) btn.onclick = () => switchTab(t);
+    });
+    const btnStore = document.getElementById('btn-open-store');
+    if(btnStore) btnStore.onclick = () => switchTab('store');
+}
+
+// کال‌بک سراسری برای رفرش کردن کل برنامه بعد از هر تغییر
+async function refreshApp() {
+    await refreshData();
+}
+
+document.addEventListener('DOMContentLoaded', initApp);
