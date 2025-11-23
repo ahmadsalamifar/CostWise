@@ -1,33 +1,33 @@
 // کنترل‌کننده اصلی بخش مواد اولیه
-// وظیفه: هماهنگی بین فرم، لیست و API. نقطه ورود این ماژول.
-
 import { api } from '../../core/api.js';
 import { state, APPWRITE_CONFIG } from '../../core/config.js';
 import * as ListUI from './materialList.js';
 import * as FormUI from './materialForm.js';
+// ایمپورت ماژول اسکرپر (بخش جدید)
+import * as Scraper from './materials_scraper.js';
 
-// راه‌اندازی اولیه ماژول
 export function init(refreshAppCallback) {
-    // راه‌اندازی لیست و جستجو
+    // 1. راه‌اندازی لیست و جستجو
     ListUI.setupSearchListeners(renderMaterials);
     
-    // راه‌اندازی فرم و دکمه‌ها
+    // 2. راه‌اندازی فرم و دکمه‌ها
     FormUI.setupFormListeners(async (formData) => {
         await saveMaterial(formData);
         refreshAppCallback();
     });
 
-    // دکمه جدید
+    // 3. راه‌اندازی اسکرپر (دکمه بروزرسانی و تست) - بخش جدید
+    Scraper.setupScraperListeners(refreshAppCallback);
+
+    // 4. دکمه کالای جدید
     const btnNew = document.getElementById('btn-new-mat-plus');
     if (btnNew) btnNew.onclick = FormUI.resetForm;
 }
 
-// تابع اصلی رندر که توسط Main صدا زده می‌شود
 export function renderMaterials() {
     ListUI.renderGrid(state.materials, state.categories, handleDelete, handleEdit);
 }
 
-// منطق ذخیره سازی
 async function saveMaterial(data) {
     const id = document.getElementById('mat-id').value;
     try {
@@ -42,12 +42,10 @@ async function saveMaterial(data) {
     }
 }
 
-// هندلرها برای اکشن‌های لیست
 async function handleDelete(id) {
     if(confirm('حذف شود؟')) {
         try {
             await api.delete(APPWRITE_CONFIG.COLS.MATS, id);
-            // حذف از State لوکال برای آپدیت سریع UI
             state.materials = state.materials.filter(m => m.$id !== id);
             renderMaterials();
         } catch(e) { alert(e.message); }
