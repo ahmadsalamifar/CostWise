@@ -1,6 +1,6 @@
-import { account, state } from './config.js';
+import { account, state } from './core/config.js';
 import { fetchAllData } from './api.js';
-import { switchTab, formatPrice, parseLocaleNumber } from './utils.js';
+import { switchTab, formatPrice, parseLocaleNumber } from './core/utils.js';
 import * as Formulas from './formulas.js';
 import * as Materials from './materials.js';
 import * as Categories from './categories.js';

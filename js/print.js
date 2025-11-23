@@ -1,7 +1,7 @@
-import { state } from './config.js';
+import { state } from './core/config.js';
 // تغییر مسیر: ایمپورت از فایل محاسبات به جای فایل اصلی
 import { calculateCost } from './formulas_calc.js'; 
-import { formatPrice, formatDate, openModal, closeModal } from './utils.js';
+import { formatPrice, formatDate, openModal, closeModal } from './core/utils.js';
 
 export function setupPrint() {
     // اتصال دکمه چاپ (با چک کردن وجود دکمه)

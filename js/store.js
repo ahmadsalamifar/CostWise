@@ -1,6 +1,6 @@
 import { api } from './api.js';
-import { state, APPWRITE_CONFIG } from './config.js';
-import { switchTab } from './utils.js';
+import { state, APPWRITE_CONFIG } from './core/config.js';
+import { switchTab } from './core/utils.js';
 
 export function setupStore(refreshCallback) {
     // منطق در رندر هندل می‌شود

@@ -1,4 +1,4 @@
-import { state } from './config.js';
+import { state } from './core/config.js';
 
 // وضعیت موقت برای ویرایش واحدها
 let currentUnitRelations = [];

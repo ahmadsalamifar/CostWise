@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import { state, APPWRITE_CONFIG } from './config.js';
+import { state, APPWRITE_CONFIG } from './core/config.js';
 
 export function setupCategories(refreshCallback) {
     // مدیریت دسته‌ها

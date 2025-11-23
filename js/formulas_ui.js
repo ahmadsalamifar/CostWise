@@ -1,5 +1,5 @@
-import { state } from './config.js';
-import { formatPrice, formatDate } from './utils.js';
+import { state } from './core/config.js';
+import { formatPrice, formatDate } from './core/utils.js';
 import { calculateCost, getUnitFactor } from './formulas_calc.js';
 
 // رندر لیست سمت راست (لیست اصلی فرمول‌ها)

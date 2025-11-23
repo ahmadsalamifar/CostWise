@@ -1,6 +1,6 @@
 import { api } from './api.js';
-import { state, APPWRITE_CONFIG } from './config.js';
-import { parseLocaleNumber, openModal, closeModal } from './utils.js';
+import { state, APPWRITE_CONFIG } from './core/config.js';
+import { parseLocaleNumber, openModal, closeModal } from './core/utils.js';
 import * as UI from './formulas_ui.js';
 
 export function setupFormulas(refreshCallback) {

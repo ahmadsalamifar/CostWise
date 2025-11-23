@@ -1,6 +1,6 @@
 import { api } from './api.js';
-import { state, APPWRITE_CONFIG } from './config.js';
-import { formatPrice, parseLocaleNumber, getDateBadge } from './utils.js';
+import { state, APPWRITE_CONFIG } from './core/config.js';
+import { formatPrice, parseLocaleNumber, getDateBadge } from './core/utils.js';
 import * as Units from './materials_units.js';
 import * as Scraper from './materials_scraper.js';
 

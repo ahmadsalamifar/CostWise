@@ -1,4 +1,4 @@
-import { state } from './config.js';
+import { state } from './core/config.js';
 
 /**
  * دریافت ضریب تبدیل واحد برای یک متریال خاص
