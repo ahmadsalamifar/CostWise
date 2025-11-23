@@ -8,6 +8,8 @@ import * as MaterialController from './features/materials/materialController.js'
 import * as FormulaController from './features/formulas/formulaController.js';
 import * as SettingsController from './features/settings/settingsController.js';
 import * as StoreController from './features/store/storeController.js';
+// ایمپورت ماژول جدید گزارشات
+import * as ReportController from './features/reports/reportController.js';
 
 async function initApp() {
     try {
@@ -18,11 +20,12 @@ async function initApp() {
         // 2. دریافت دیتا
         await refreshData();
         
-        // 3. راه‌اندازی ماژول‌ها و تزریق HTML
+        // 3. راه‌اندازی ماژول‌ها
         FormulaController.init(refreshApp);
         MaterialController.init(refreshApp);
         SettingsController.init(refreshApp);
         if(StoreController.init) StoreController.init(refreshApp);
+        ReportController.init(); // راه‌اندازی گزارشات
         
         setupPrint(); 
 
@@ -33,7 +36,7 @@ async function initApp() {
         setupTabs();
         switchTab('formulas');
         
-        // 5. رفرش اولیه لیست‌ها (مطمئن می‌شویم بعد از نمایش UI پر شوند)
+        // 5. رفرش اولیه لیست‌ها
         updateAllUI();
 
     } catch (err) {
@@ -55,7 +58,6 @@ async function refreshData() {
     state.materials = m.documents;
     state.formulas = f.documents;
     
-    // اگر UI قبلا ساخته شده، آن را آپدیت کن
     if(!document.getElementById('loading-screen').classList.contains('hidden')) return;
     updateAllUI();
 }
@@ -65,12 +67,19 @@ function updateAllUI() {
     FormulaController.renderFormulaList();
     SettingsController.renderSettings(refreshApp);
     StoreController.renderStore(refreshApp);
+    // رسم مجدد نمودارها با داده‌های جدید
+    ReportController.renderReports();
 }
 
 function setupTabs() {
-    ['formulas', 'materials', 'categories'].forEach(t => {
+    // اضافه شدن 'reports' به لیست تب‌ها
+    ['formulas', 'materials', 'reports', 'categories'].forEach(t => {
         const btn = document.getElementById('btn-tab-' + t);
-        if(btn) btn.onclick = () => switchTab(t);
+        if(btn) btn.onclick = () => {
+            switchTab(t);
+            // اگر تب گزارشات باز شد، نمودارها را دوباره رسم کن (برای حل مشکل سایز canvas)
+            if (t === 'reports') ReportController.renderReports();
+        };
     });
     const btnStore = document.getElementById('btn-open-store');
     if(btnStore) btnStore.onclick = () => switchTab('store');
