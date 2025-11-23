@@ -3,45 +3,52 @@ import { account, state, APPWRITE_CONFIG, Query } from './core/config.js';
 import { api } from './core/api.js';
 import { switchTab, toggleElement } from './core/utils.js';
 import { setupPrint } from './print.js'; 
+// اضافه کردن ماژول Layout
+import { injectAppLayout } from './core/layout.js';
 
 import * as MaterialController from './features/materials/materialController.js';
 import * as FormulaController from './features/formulas/formulaController.js';
 import * as SettingsController from './features/settings/settingsController.js';
 import * as StoreController from './features/store/storeController.js';
-// ایمپورت ماژول جدید گزارشات
 import * as ReportController from './features/reports/reportController.js';
 
 async function initApp() {
     try {
-        // 1. احراز هویت
+        // 1. تزریق ساختار HTML (اولین و مهمترین مرحله)
+        injectAppLayout();
+
+        // 2. احراز هویت
         try { await account.get(); } 
         catch { await account.createAnonymousSession(); }
 
-        // 2. دریافت دیتا
+        // 3. دریافت دیتا
         await refreshData();
         
-        // 3. راه‌اندازی ماژول‌ها
+        // 4. راه‌اندازی ماژول‌ها
         FormulaController.init(refreshApp);
         MaterialController.init(refreshApp);
         SettingsController.init(refreshApp);
         if(StoreController.init) StoreController.init(refreshApp);
-        ReportController.init(); // راه‌اندازی گزارشات
+        ReportController.init();
         
         setupPrint(); 
 
-        // 4. نمایش UI و تب‌ها
+        // 5. نمایش UI و تب‌ها
         toggleElement('loading-screen', false);
         toggleElement('app-content', true);
         
         setupTabs();
         switchTab('formulas');
         
-        // 5. رفرش اولیه لیست‌ها
+        // 6. رفرش اولیه لیست‌ها
         updateAllUI();
 
     } catch (err) {
         console.error(err);
-        document.getElementById('loading-text').innerText = "خطا: " + err.message;
+        // اگر المان لودینگ هنوز در صفحه است (چون layout تزریق شده)
+        const loadingText = document.getElementById('loading-text');
+        if(loadingText) loadingText.innerText = "خطا: " + err.message;
+        else alert("خطا: " + err.message);
     }
 }
 
@@ -67,17 +74,14 @@ function updateAllUI() {
     FormulaController.renderFormulaList();
     SettingsController.renderSettings(refreshApp);
     StoreController.renderStore(refreshApp);
-    // رسم مجدد نمودارها با داده‌های جدید
     ReportController.renderReports();
 }
 
 function setupTabs() {
-    // اضافه شدن 'reports' به لیست تب‌ها
     ['formulas', 'materials', 'reports', 'categories'].forEach(t => {
         const btn = document.getElementById('btn-tab-' + t);
         if(btn) btn.onclick = () => {
             switchTab(t);
-            // اگر تب گزارشات باز شد، نمودارها را دوباره رسم کن (برای حل مشکل سایز canvas)
             if (t === 'reports') ReportController.renderReports();
         };
     });
