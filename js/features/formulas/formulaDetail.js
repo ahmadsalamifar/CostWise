@@ -1,7 +1,6 @@
 // مدیریت پنل جزئیات فرمول
 import { state } from '../../core/config.js';
 import { formatPrice, formatDate, toggleElement } from '../../core/utils.js';
-// اصلاح نام فایل ایمپورت شده
 import { calculateCost, getUnitFactor } from './formulas_calc.js';
 
 // --- بخش ۱: رندرینگ ---
@@ -21,7 +20,7 @@ export function renderDetailView(formula, callbacks) {
     if(nameEl) nameEl.innerText = formula.name;
     
     const dateEl = document.getElementById('active-formula-date');
-    if(dateEl) dateEl.innerText = "بروزرسانی: " + formatDate(formula.$updatedAt);
+    if(dateEl) dateEl.innerText = formatDate(formula.$updatedAt);
     
     // 2. اینپوت‌های هزینه سربار و دستمزد
     const setVal = (id, val) => { 
@@ -48,11 +47,15 @@ export function renderDetailView(formula, callbacks) {
 
 function renderComponentsTable(formula, onDelete) {
     const listEl = document.getElementById('formula-comps-list');
+    const countEl = document.getElementById('formula-item-count'); // المنت شمارنده
     if (!listEl) return;
 
     let comps = [];
     try { comps = typeof formula.components === 'string' ? JSON.parse(formula.components) : formula.components; } catch(e){}
     if (!Array.isArray(comps)) comps = [];
+
+    // بروزرسانی تعداد اقلام
+    if(countEl) countEl.innerText = `${comps.length} قلم`;
 
     if (comps.length === 0) {
         listEl.innerHTML = '<div class="p-8 text-center text-slate-400 text-xs">اجزای سازنده را اضافه کنید...</div>';
@@ -73,19 +76,15 @@ function createComponentRow(c, idx) {
         const m = state.materials.find(x => x.$id === c.id);
         if (m) {
             name = m.name;
-            // محاسبه قیمت بر اساس واحد انتخابی
             const factor = getUnitFactor(m, c.unit);
             
-            // دریافت قیمت خرید و اعمال مالیات
             let basePrice = m.price || 0;
             if(m.has_tax) basePrice *= 1.1;
 
-            // دریافت واحد خرید کالا
             let rels = {};
             try { rels = typeof m.unit_relations === 'string' ? JSON.parse(m.unit_relations) : m.unit_relations; } catch(e){}
             const purchaseUnit = m.purchase_unit || rels?.price_unit || 'عدد';
             
-            // محاسبه: (قیمت پایه / ضریب واحد خرید) * ضریب واحد مصرف
             const purchaseFactor = getUnitFactor(m, purchaseUnit);
             
             if (purchaseFactor !== 0) {
@@ -107,18 +106,17 @@ function createComponentRow(c, idx) {
         <div>
             <div class="font-bold text-slate-700 text-xs">${name}</div>
             <div class="text-[10px] text-slate-500 mt-1">
-                <span class="bg-slate-200 px-1.5 rounded">${c.qty}</span> ${unitName} × ${formatPrice(price)}
+                <span class="bg-slate-200 px-1.5 rounded font-mono font-bold text-slate-600">${c.qty}</span> ${unitName} × ${formatPrice(price)}
             </div>
         </div>
         <div class="flex items-center gap-2">
-            <span class="font-bold text-slate-700 text-xs">${formatPrice(total)}</span>
-            <button class="text-rose-400 opacity-0 group-hover:opacity-100 btn-del-comp px-2" data-idx="${idx}">×</button>
+            <span class="font-bold text-slate-700 text-xs font-mono">${formatPrice(total)}</span>
+            <button class="text-rose-400 opacity-0 group-hover:opacity-100 btn-del-comp px-2 transition-opacity" data-idx="${idx}">×</button>
         </div>
     </div>`;
 }
 
-// --- بخش ۲: مدیریت دراپ‌داون‌ها ---
-
+// ... (باقی توابع updateCompSelect و setupDropdownListeners بدون تغییر می‌مانند که در فایل قبلی بودند) ...
 export function updateCompSelect() {
     const filter = document.getElementById('comp-filter')?.value;
     const sel = document.getElementById('comp-select');
@@ -135,7 +133,6 @@ export function updateCompSelect() {
             const mats = state.materials.filter(x => x.category_id === cat.$id);
             if (mats.length) html += `<optgroup label="${cat.name}">` + mats.map(x => `<option value="MAT:${x.$id}">${x.name}</option>`).join('') + `</optgroup>`;
         });
-        // نمایش موارد بدون دسته در صورت عدم فیلتر
         if (!filter) {
              const uncategorized = state.materials.filter(x => !x.category_id);
              if (uncategorized.length) html += `<optgroup label="سایر">` + uncategorized.map(x => `<option value="MAT:${x.$id}">${x.name}</option>`).join('') + `</optgroup>`;
@@ -147,7 +144,6 @@ export function updateCompSelect() {
 export function setupDropdownListeners() {
     const filterEl = document.getElementById('comp-filter');
     if (filterEl) {
-        // پر کردن فیلتر دسته‌ها
         const cats = state.categories.map(x => `<option value="${x.$id}">${x.name}</option>`).join('');
         filterEl.innerHTML = `<option value="">همه...</option>${cats}<option value="FORM">فرمول‌ها (محصولات)</option>`;
         filterEl.onchange = updateCompSelect;
@@ -173,16 +169,12 @@ function updateUnitSelect() {
         let opts = ['عدد'];
         try {
             const rels = typeof m.unit_relations === 'string' ? JSON.parse(m.unit_relations) : (m.unit_relations || {});
-            
-            // جمع‌آوری تمام واحدهای موجود برای این کالا
             if (rels.base) opts.push(rels.base);
             if (Array.isArray(rels.others)) rels.others.forEach(u => opts.push(u.name));
             if (m.purchase_unit) opts.push(m.purchase_unit);
             if (m.consumption_unit) opts.push(m.consumption_unit);
-            
-            opts = [...new Set(opts)]; // حذف تکراری
+            opts = [...new Set(opts)]; 
         } catch(e){}
-        
         unitSel.innerHTML = opts.map(u => `<option value="${u}">${u}</option>`).join('');
     }
 }

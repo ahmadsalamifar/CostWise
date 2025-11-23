@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>سامانه مدیریت تولید سیمرغ (نسخه ۳.۳.۲)</title>
+    <title>سامانه مدیریت تولید سیمرغ (نسخه ۳.۴.۰)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/appwrite@14.0.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -18,67 +18,78 @@
         <p class="text-xs text-slate-400" id="loading-text">در حال بارگذاری...</p>
     </div>
 
-    <div id="app-content" class="hidden h-screen flex flex-col overflow-hidden">
+    <div id="app-content" class="hidden h-screen flex flex-col overflow-hidden bg-slate-50">
         
         <!-- هدر -->
-        <header class="app-header shrink-0 z-20 shadow-sm relative">
+        <header class="app-header shrink-0 z-20 shadow-sm relative bg-white px-4 py-3 flex justify-between items-center">
             <div><h1 class="text-lg md:text-2xl font-black text-slate-800">سامانه <span class="text-teal-600">سیمرغ</span></h1></div>
             <div class="flex items-center gap-2">
                 <div class="status-badge hidden sm:flex"><span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> آنلاین</div>
-                <button id="btn-open-store" class="btn btn-secondary text-[10px] px-2 md:text-xs md:px-3" type="button">🏦 بانک فرمول</button>
+                <button id="btn-open-store" class="btn btn-secondary text-[10px] px-2 md:text-xs md:px-3 border border-slate-200 hover:bg-slate-100" type="button">🏦 بانک فرمول</button>
             </div>
         </header>
 
         <!-- تب‌ها -->
-        <nav class="nav-tabs shrink-0 z-10">
+        <nav class="nav-tabs shrink-0 z-10 bg-white border-b border-slate-200">
             <button class="tab-btn active" id="btn-tab-formulas" type="button" data-target="formulas">📋 محصولات</button>
             <button class="tab-btn" id="btn-tab-materials" type="button" data-target="materials">📦 انبار و خرید</button>
             <button class="tab-btn" id="btn-tab-reports" type="button" data-target="reports">📊 گزارشات</button>
             <button class="tab-btn" id="btn-tab-categories" type="button" data-target="categories">📂 تنظیمات</button>
         </nav>
 
-        <main class="flex-1 overflow-hidden p-2 md:p-4 bg-slate-50 relative">
+        <main class="flex-1 overflow-hidden p-2 md:p-4 relative">
             
             <!-- تب فرمول‌ها -->
             <div id="tab-formulas" class="tab-content h-full flex flex-col lg:flex-row gap-4"></div>
             
-            <!-- تب مواد اولیه (اصلاح شده برای موبایل) -->
-            <div id="tab-materials" class="tab-content hidden h-full flex flex-col lg:flex-row gap-4 overflow-y-auto lg:overflow-hidden">
+            <!-- تب مواد اولیه -->
+            <div id="tab-materials" class="tab-content hidden h-full flex flex-col lg:flex-row gap-4 overflow-hidden">
                 
-                <!-- ستون لیست (در موبایل اول نمایش داده شود برای دسترسی سریعتر) -->
-                <!-- تغییر کلاس‌ها: lg:h-full و lg:overflow-hidden اضافه شد تا در موبایل ارتفاع اتوماتیک باشد -->
-                <div class="w-full lg:w-2/3 order-1 lg:order-2 flex flex-col lg:h-full lg:overflow-hidden shrink-0">
-                    <div class="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col lg:h-full min-h-[400px]">
+                <!-- ستون لیست (وسط/راست) -->
+                <div class="w-full lg:w-2/3 order-1 lg:order-2 flex flex-col h-full overflow-hidden">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-full">
                         
                         <!-- هدر لیست -->
-                        <div class="flex flex-col sm:flex-row gap-2 mb-3 items-center shrink-0">
-                            <button id="btn-new-mat-plus" class="bg-emerald-500 text-white rounded-lg w-10 h-10 flex items-center justify-center text-xl font-bold shadow hover:bg-emerald-600 transition-colors pb-1 shrink-0 order-1 sm:order-1">+</button>
-                            <input type="text" id="search-materials" placeholder="جستجو..." class="input-field pl-4 h-10 text-xs flex-grow order-2 sm:order-2">
-                            <select id="sort-materials" class="input-field w-full sm:w-auto text-xs h-10 order-3 sm:order-3">
+                        <div class="p-3 border-b flex flex-wrap gap-2 items-center bg-slate-50 rounded-t-2xl shrink-0">
+                            <!-- دکمه جدید -->
+                            <button id="btn-new-mat-plus" class="bg-emerald-600 text-white rounded-xl px-3 h-10 flex items-center justify-center text-sm font-bold shadow hover:bg-emerald-700 transition-colors gap-1 shrink-0">
+                                <span>+</span> <span class="hidden sm:inline">کالای جدید</span>
+                            </button>
+                            
+                            <!-- دکمه بروزرسانی (محل جدید) -->
+                            <button id="btn-scraper-trigger" class="h-10 text-xs text-blue-600 bg-blue-50 px-3 rounded-xl border border-blue-200 hover:bg-blue-100 whitespace-nowrap font-bold flex items-center gap-1 shrink-0">
+                                <span>🔄</span> <span class="">دریافت قیمت‌ها</span>
+                            </button>
+
+                            <!-- جستجو -->
+                            <div class="relative flex-grow min-w-[120px]">
+                                <input type="text" id="search-materials" placeholder="جستجو..." class="input-field h-10 text-xs w-full pl-8">
+                                <span class="absolute left-2 top-2.5 text-slate-400 text-xs">🔍</span>
+                            </div>
+
+                            <!-- مرتب‌سازی -->
+                            <select id="sort-materials" class="input-field w-32 text-xs h-10 shrink-0">
                                 <option value="update_desc">جدیدترین</option>
-                                <option value="stock_asc">موجودی کم</option>
-                                <option value="stock_desc">موجودی زیاد</option>
-                                <option value="category">دسته‌بندی</option>
                                 <option value="price_desc">گران‌ترین</option>
                                 <option value="price_asc">ارزان‌ترین</option>
+                                <option value="name_asc">الفبا</option>
+                                <option value="category">دسته‌بندی</option>
                             </select>
-                            <button id="btn-scraper-trigger" class="h-10 text-[10px] text-blue-600 bg-blue-50 px-3 rounded-lg border border-blue-100 hover:bg-blue-100 whitespace-nowrap font-bold flex items-center gap-1 order-4 sm:order-4">🤖 <span class="hidden sm:inline">بروزرسانی</span></button>
                         </div>
                         
-                        <!-- کانتینر کارت‌ها -->
-                        <!-- تغییر: در موبایل ارتفاع محدود ندارد تا صفحه اسکرول شود -->
-                        <div id="materials-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 lg:overflow-y-auto p-1 custom-scrollbar"></div>
+                        <!-- کانتینر کارت‌ها (اسکرول داخلی) -->
+                        <div id="materials-container" class="flex-1 overflow-y-auto p-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 custom-scrollbar content-start"></div>
                     </div>
                 </div>
 
-                <!-- ستون فرم (در موبایل پایین نمایش داده شود) -->
-                <div class="w-full lg:w-1/3 order-2 lg:order-1 shrink-0 mb-8 lg:mb-0">
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 lg:h-full lg:overflow-y-auto custom-scrollbar sticky top-0">
-                         <h3 class="font-bold text-slate-700 mb-3 text-sm border-b pb-2 flex items-center gap-2">
+                <!-- ستون فرم (چپ) -->
+                <div class="w-full lg:w-1/3 order-2 lg:order-1 h-fit lg:h-full flex flex-col overflow-hidden shrink-0">
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 h-full overflow-y-auto custom-scrollbar">
+                         <h3 class="font-bold text-slate-700 mb-3 text-sm border-b pb-2 flex items-center gap-2 sticky top-0 bg-white z-10">
                             <span class="bg-emerald-100 text-emerald-600 p-1 rounded">✏️</span>
                             مدیریت کالا
                          </h3>
-                         <form id="material-form" class="space-y-3">
+                         <form id="material-form" class="space-y-3 pb-4">
                             <input type="hidden" id="mat-id">
                             <select id="mat-category" class="input-field bg-slate-50 text-xs"><option value="">دسته‌بندی...</option></select>
                             <input type="text" id="mat-name" class="input-field text-xs font-bold" placeholder="نام کالا..." required>
@@ -140,9 +151,9 @@
                                 </div>
                             </div>
                             
-                            <div class="flex gap-2 mt-4 pt-2 border-t">
-                                <button type="button" id="mat-cancel-btn" class="btn btn-secondary flex-1 text-xs h-9 hidden">لغو</button>
-                                <button type="submit" id="mat-submit-btn" class="btn btn-primary flex-[2] text-xs h-9">ذخیره کالا</button>
+                            <div class="flex gap-2 mt-4 pt-2 border-t sticky bottom-0 bg-white pb-2">
+                                <button type="button" id="mat-cancel-btn" class="btn btn-secondary flex-1 text-xs h-10 hidden">لغو</button>
+                                <button type="submit" id="mat-submit-btn" class="btn btn-primary flex-[2] text-xs h-10 shadow-md">ذخیره کالا</button>
                             </div>
                         </form>
                     </div>
