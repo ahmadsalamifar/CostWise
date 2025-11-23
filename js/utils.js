@@ -1,5 +1,3 @@
-// توابع کمکی عمومی
-
 export function parseLocaleNumber(stringNumber) {
     if (stringNumber === undefined || stringNumber === null || stringNumber === '') return 0;
     if (typeof stringNumber === 'number') return stringNumber;
@@ -8,7 +6,6 @@ export function parseLocaleNumber(stringNumber) {
     str = str.replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
              .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
     const clean = str.replace(/[^0-9.-]/g, '');
-    
     const val = parseFloat(clean);
     return isNaN(val) ? 0 : val;
 }
@@ -36,21 +33,26 @@ export function getDateBadge(dateString) {
         colorClass = 'bg-slate-100 text-slate-500 border-slate-200'; 
         text = 'قدیمی: ' + text;
     }
-    
     return `<span class="text-[10px] px-1.5 py-0.5 rounded border ${colorClass} whitespace-nowrap">${text}</span>`;
 }
 
-// --- اصلاح شده: اضافه شدن 'reports' و 'store' به لیست تب‌ها ---
+// --- اصلاح شده: اضافه شدن تمام تب‌ها به لیست ---
 export function switchTab(id) {
     const tabs = ['formulas', 'materials', 'categories', 'store', 'reports'];
     
     tabs.forEach(t => {
-        document.getElementById('tab-' + t)?.classList.add('hidden');
-        document.getElementById('btn-tab-' + t)?.classList.remove('active');
+        const el = document.getElementById('tab-' + t);
+        const btn = document.getElementById('btn-tab-' + t);
+        
+        if (el) el.classList.add('hidden');
+        if (btn) btn.classList.remove('active');
     });
 
-    document.getElementById('tab-' + id)?.classList.remove('hidden');
-    document.getElementById('btn-tab-' + id)?.classList.add('active');
+    const target = document.getElementById('tab-' + id);
+    const targetBtn = document.getElementById('btn-tab-' + id);
+    
+    if (target) target.classList.remove('hidden');
+    if (targetBtn) targetBtn.classList.add('active');
 }
 
 export function openModal(id) {

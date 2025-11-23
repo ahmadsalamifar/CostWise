@@ -12,10 +12,11 @@ async function refreshApp() {
 }
 
 function updateUI() {
-    Formulas.renderFormulaList();
-    Materials.renderMaterials();
-    Categories.renderCategories(refreshApp);
-    Store.renderStore(refreshApp);
+    // اجرای جداگانه هر بخش برای جلوگیری از توقف کل برنامه در صورت خطا
+    try { Formulas.renderFormulaList(); } catch(e) { console.error("Formulas error:", e); }
+    try { Materials.renderMaterials(); } catch(e) { console.error("Materials error:", e); }
+    try { Categories.renderCategories(refreshApp); } catch(e) { console.error("Categories error:", e); }
+    try { Store.renderStore(refreshApp); } catch(e) { console.error("Store error:", e); }
     
     if (state.activeFormulaId) {
         const f = state.formulas.find(x => x.$id === state.activeFormulaId);
@@ -27,14 +28,14 @@ function updateUI() {
             document.getElementById('formula-detail-empty')?.classList.remove('hidden');
         }
     }
-    Formulas.updateDropdowns();
-    Formulas.updateCompSelect();
-    updateMatCatDropdown();
     
-    // آپدیت نمودارها اگر تب گزارشات باز باشد
+    try { Formulas.updateDropdowns(); } catch(e){}
+    try { Formulas.updateCompSelect(); } catch(e){}
+    try { updateMatCatDropdown(); } catch(e){}
+    
     const reportsTab = document.getElementById('tab-reports');
     if (reportsTab && !reportsTab.classList.contains('hidden')) {
-        renderReports();
+        try { renderReports(); } catch(e) { console.error("Chart error:", e); }
     }
 }
 
@@ -53,10 +54,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         await fetchAllData();
         
         const loading = document.getElementById('loading-screen');
-        if (loading) loading.classList.add('hidden');
+        if(loading) loading.classList.add('hidden');
         document.getElementById('app-content')?.classList.remove('hidden');
         
-        // Tab Management - با بررسی دقیق وجود دکمه‌ها
+        // مدیریت تب‌ها با اطمینان از وجود دکمه
         ['formulas', 'materials', 'categories', 'reports'].forEach(t => {
              const btn = document.getElementById('btn-tab-' + t);
              if (btn) {
@@ -64,8 +65,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                      switchTab(t); 
                      if(t === 'reports' && typeof renderReports === 'function') renderReports(); 
                  };
-             } else {
-                 console.warn(`Warning: Tab button 'btn-tab-${t}' not found in HTML.`);
              }
         });
         
@@ -106,7 +105,7 @@ function setupGlobalPriceInputs() {
     });
 }
 
-// --- منطق گزارشات و نمودار (Chart.js) ---
+// --- منطق نمودارها ---
 let stockChart = null;
 let categoryChart = null;
 
@@ -114,14 +113,14 @@ function renderReports() {
     const ctxStock = document.getElementById('chart-stock-value');
     const ctxCat = document.getElementById('chart-categories');
     
-    // اگر کتابخانه چارت لود نشده یا المان‌ها نیستند، بیخیال شو
     if (typeof Chart === 'undefined' || !ctxStock || !ctxCat) return;
 
     // داده‌های موجودی انبار
     const topStock = state.materials
         .map(m => ({ name: m.name, value: (m.stock || 0) * (m.avg_price || 0) }))
+        .filter(m => m.value > 0)
         .sort((a, b) => b.value - a.value)
-        .slice(0, 10); // 10 تای اول
+        .slice(0, 10);
 
     // داده‌های دسته‌بندی
     const catStats = {};
