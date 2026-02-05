@@ -1,5 +1,5 @@
 // لایه ارتباط با سرور
-// وظیفه: فقط ارسال و دریافت داده خام (بدون منطق UI)
+// وظیفه: فقط ارسال و دریافت داده خام و مدیریت ارتباط با Appwrite Functions
 
 import { db, functions, ID, APPWRITE_CONFIG } from './config.js';
 
@@ -18,19 +18,34 @@ export const api = {
     // اجرای تابع اسکرپر در سمت سرور
     runScraper: async (payload = {}) => {
         try {
+            // تزریق کانفیگ‌های ضروری به پی‌لود تابع
+            // این بخش بسیار حیاتی است تا تابع سمت سرور بداند با کدام دیتابیس کار کند
+            const extendedPayload = {
+                ...payload,
+                dbId: APPWRITE_CONFIG.DB_ID,
+                collectionId: APPWRITE_CONFIG.COLS.MATS,        // کالکشن کالاها
+                historyCollectionId: APPWRITE_CONFIG.COLS.HISTORY // کالکشن تاریخچه
+            };
+
             const execution = await functions.createExecution(
                 APPWRITE_CONFIG.FUNCTIONS.SCRAPER, 
-                JSON.stringify(payload)
+                JSON.stringify(extendedPayload)
             );
             
             if (execution.status === 'completed') {
-                return JSON.parse(execution.responseBody);
+                try {
+                    return JSON.parse(execution.responseBody);
+                } catch (parseError) {
+                    return { success: false, error: "خطا در پردازش پاسخ سرور: " + execution.responseBody };
+                }
             } else {
-                return { success: false, error: "وضعیت خطا: " + execution.status };
+                return { success: false, error: "وضعیت اجرای تابع: " + execution.status };
             }
         } catch (error) {
             console.error("Function Network Error:", error);
-            throw new Error("خطای ارتباط با سرور اسکرپر");
+            // نمایش خطای دقیق‌تر به کاربر
+            const msg = error.message || "خطای ناشناخته در ارتباط با سرور";
+            throw new Error("خطای اسکرپر: " + msg);
         }
     }
 };
