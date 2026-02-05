@@ -2,6 +2,8 @@
 
 Smart Production Management, Cost Calculation & Online Price Inquiry System
 
+View Live Demo: costwise.appwrite.network
+
 CostWise is a powerful, modern web application tailored for manufacturing businesses. It streamlines the process of managing raw materials, defining nested formulas (BOM), and calculating real-time production costs using automated price updates.
 
 Built with performance and simplicity in mind, using Vanilla JavaScript, Tailwind CSS, and Appwrite.

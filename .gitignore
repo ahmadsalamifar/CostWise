@@ -1,0 +1,34 @@
+# Node.js dependencies (برای پوشه اسکرپر)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Python (چون فایل‌های مدل پایتون دارد)
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+
+# System Files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.trunk/
+
+# Environment Variables (امنیت)
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs
+*.log
+
+# Build output
+dist/
+build/
