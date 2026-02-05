@@ -1,6 +1,7 @@
 import { state } from './core/config.js';
 import { calculateCost } from './features/formulas/formulas_calc.js'; 
 import { formatPrice, formatDate, toggleElement } from './core/utils.js';
+import { t } from './core/i18n.js';
 
 function openModal(id) { toggleElement(id, true); }
 function closeModal(id) { toggleElement(id, false); }
@@ -14,6 +15,7 @@ export function setupPrint() {
     
     const buyerInput = document.getElementById('print-buyer-input');
     if(buyerInput) {
+        buyerInput.placeholder = t('print_buyer');
         buyerInput.oninput = (e) => {
             const el = document.getElementById('print-buyer-name');
             if(el) el.innerText = e.target.value || '---';
@@ -22,6 +24,7 @@ export function setupPrint() {
 
     const sellerInput = document.getElementById('print-seller-input');
     if(sellerInput) {
+        sellerInput.placeholder = t('print_seller');
         sellerInput.oninput = (e) => {
             const el = document.getElementById('print-seller-name');
             if(el) el.innerText = e.target.value || 'CostWise Industries';
@@ -54,9 +57,15 @@ export function printInvoice() {
     const buyerNameEl = document.getElementById('print-buyer-name');
 
     if(sellerNameEl) sellerNameEl.innerText = (sellerInp && sellerInp.value) ? sellerInp.value : 'CostWise Industries';
-    if(buyerNameEl) buyerNameEl.innerText = (buyerInp && buyerInp.value) ? buyerInp.value : 'Valued Customer';
+    if(buyerNameEl) buyerNameEl.innerText = (buyerInp && buyerInp.value) ? buyerInp.value : 'Customer';
     
     const rowsEl = document.getElementById('print-rows');
+    // ساخت هدر جدول به صورت داینامیک برای ترجمه
+    const thead = document.querySelector('#print-rows').closest('table').querySelector('thead tr');
+    if(thead) {
+        thead.innerHTML = `<th class="text-right py-2">${t('print_desc')}</th><th class="text-center">${t('print_count')}</th><th class="text-center">${t('print_unit')}</th>`;
+    }
+
     if(rowsEl) {
         rowsEl.innerHTML = comps.map((c, idx) => {
             let name='-', unit='-';
@@ -65,7 +74,7 @@ export function printInvoice() {
                 const m = state.materials.find(x=>x.$id===c.id); 
                 if(m) {
                     name = m.display_name || m.name; 
-                    unit = c.unit || m.consumption_unit || 'عدد'; 
+                    unit = c.unit || m.consumption_unit || 'Count'; 
                 }
             }
             else { 
@@ -76,10 +85,9 @@ export function printInvoice() {
             
             return `
             <tr>
-                <td class="py-2 text-right w-10 text-slate-400">${idx+1}</td>
-                <td class="py-2 text-right font-bold">${name}</td>
-                <td class="text-center font-mono">${c.qty}</td>
-                <td class="text-center text-xs text-slate-500">${unit}</td>
+                <td class="py-2 text-right font-bold border-b border-slate-100">${name}</td>
+                <td class="text-center font-mono border-b border-slate-100">${c.qty}</td>
+                <td class="text-center text-xs text-slate-500 border-b border-slate-100">${unit}</td>
             </tr>`;
         }).join('');
     }
@@ -87,5 +95,9 @@ export function printInvoice() {
     const finalEl = document.getElementById('print-final');
     if(finalEl) finalEl.innerText = formatPrice(calc.final.toFixed(0));
     
+    // ترجمه لیبل جمع
+    const totalLabel = finalEl.parentElement.querySelector('span:first-child');
+    if(totalLabel) totalLabel.innerText = t('print_total');
+
     openModal('print-modal');
-}
+}   

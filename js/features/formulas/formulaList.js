@@ -1,8 +1,7 @@
-// مدیریت لیست مستر فرمول‌ها
 import { state } from '../../core/config.js';
 import { formatPrice, formatDate } from '../../core/utils.js';
-// اصلاح نام فایل ایمپورت شده
 import { calculateCost } from './formulas_calc.js';
+import { t } from '../../core/i18n.js';
 
 export function setupSearch(onSearch) {
     const searchEl = document.getElementById('search-formulas');
@@ -17,7 +16,7 @@ export function renderList(activeId, onSelect) {
     const list = state.formulas.filter(f => f.name.includes(filterText));
 
     if (!list.length) {
-        el.innerHTML = '<p class="text-center text-slate-400 text-xs mt-10">موردی یافت نشد</p>';
+        el.innerHTML = `<p class="text-center text-slate-400 text-xs mt-10">${t('search_placeholder')}</p>`;
         return;
     }
 
@@ -30,12 +29,11 @@ export function renderList(activeId, onSelect) {
             <div class="font-bold text-xs text-slate-700 pointer-events-none">${f.name}</div>
             <div class="text-[10px] text-slate-400 mt-0.5 pointer-events-none flex justify-between">
                 <span>${formatDate(f.$updatedAt)}</span>
-                <span class="font-bold text-teal-700">${formatPrice(calc.final)} ت</span>
+                <span class="font-bold text-teal-700">${formatPrice(calc.final)} ${t('toman')}</span>
             </div>
         </div>`;
     }).join('');
 
-    // اتصال رویداد کلیک
     el.querySelectorAll('.formula-item').forEach(item => {
         item.onclick = () => onSelect(item.dataset.id);
     });

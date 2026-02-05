@@ -1,9 +1,7 @@
-// مدیریت پنل جزئیات فرمول
 import { state } from '../../core/config.js';
 import { formatPrice, formatDate, toggleElement } from '../../core/utils.js';
 import { calculateCost, getUnitFactor } from './formulas_calc.js';
-
-// --- بخش ۱: رندرینگ ---
+import { t } from '../../core/i18n.js';
 
 export function renderDetailView(formula, callbacks) {
     if (!formula) {
@@ -15,14 +13,12 @@ export function renderDetailView(formula, callbacks) {
     toggleElement('formula-detail-empty', false);
     toggleElement('formula-detail-view', true);
 
-    // 1. هدر و اطلاعات پایه
     const nameEl = document.getElementById('active-formula-name');
     if(nameEl) nameEl.innerText = formula.name;
     
     const dateEl = document.getElementById('active-formula-date');
     if(dateEl) dateEl.innerText = formatDate(formula.$updatedAt);
     
-    // 2. اینپوت‌های هزینه سربار و دستمزد
     const setVal = (id, val) => { 
         const el = document.getElementById(id); 
         if(el) el.value = typeof val === 'number' ? formatPrice(val) : val; 
@@ -33,32 +29,28 @@ export function renderDetailView(formula, callbacks) {
     const profitEl = document.getElementById('inp-profit');
     if(profitEl) profitEl.value = formula.profit || 0;
 
-    // 3. جدول اجزا
     renderComponentsTable(formula, callbacks.onDeleteComp);
     
-    // 4. قیمت نهایی
     const calc = calculateCost(formula);
     const lblFinal = document.getElementById('lbl-final-price');
     if(lblFinal) lblFinal.innerText = formatPrice(calc.final);
 
-    // 5. آپدیت دراپ‌داون افزودن
     updateCompSelect();
 }
 
 function renderComponentsTable(formula, onDelete) {
     const listEl = document.getElementById('formula-comps-list');
-    const countEl = document.getElementById('formula-item-count'); // المنت شمارنده
+    const countEl = document.getElementById('formula-item-count');
     if (!listEl) return;
 
     let comps = [];
     try { comps = typeof formula.components === 'string' ? JSON.parse(formula.components) : formula.components; } catch(e){}
     if (!Array.isArray(comps)) comps = [];
 
-    // بروزرسانی تعداد اقلام
-    if(countEl) countEl.innerText = `${comps.length} قلم`;
+    if(countEl) countEl.innerText = `${comps.length} ${t('item_count')}`;
 
     if (comps.length === 0) {
-        listEl.innerHTML = '<div class="p-8 text-center text-slate-400 text-xs">اجزای سازنده را اضافه کنید...</div>';
+        listEl.innerHTML = `<div class="p-8 text-center text-slate-400 text-xs">${t('formula_empty_state')}...</div>`;
         return;
     }
 
@@ -77,26 +69,23 @@ function createComponentRow(c, idx) {
         if (m) {
             name = m.name;
             const factor = getUnitFactor(m, c.unit);
-            
             let basePrice = m.price || 0;
             if(m.has_tax) basePrice *= 1.1;
 
             let rels = {};
             try { rels = typeof m.unit_relations === 'string' ? JSON.parse(m.unit_relations) : m.unit_relations; } catch(e){}
             const purchaseUnit = m.purchase_unit || rels?.price_unit || 'عدد';
-            
             const purchaseFactor = getUnitFactor(m, purchaseUnit);
             
             if (purchaseFactor !== 0) {
                 price = (basePrice / purchaseFactor) * factor;
             }
-            
-        } else name = 'حذف شده';
+        } else name = 'Deleted';
     } else if (c.type === 'form') {
         const f = state.formulas.find(x => x.$id === c.id);
-        name = f ? `🔗 ${f.name}` : 'حذف شده';
+        name = f ? `🔗 ${f.name}` : 'Deleted';
         price = f ? calculateCost(f).final : 0;
-        unitName = 'عدد';
+        unitName = 'Count';
     }
 
     total = price * c.qty;
@@ -116,17 +105,16 @@ function createComponentRow(c, idx) {
     </div>`;
 }
 
-// ... (باقی توابع updateCompSelect و setupDropdownListeners بدون تغییر می‌مانند که در فایل قبلی بودند) ...
 export function updateCompSelect() {
     const filter = document.getElementById('comp-filter')?.value;
     const sel = document.getElementById('comp-select');
     if (!sel) return;
 
-    let html = '<option value="">انتخاب کنید...</option>'; 
+    let html = `<option value="">${t('comp_select_placeholder')}</option>`; 
     
     if (filter === 'FORM') {
         const others = state.formulas.filter(x => x.$id !== state.activeFormulaId);
-        html += `<optgroup label="فرمول‌ها">` + others.map(x => `<option value="FORM:${x.$id}">🔗 ${x.name}</option>`).join('') + `</optgroup>`;
+        html += `<optgroup label="Formulas">` + others.map(x => `<option value="FORM:${x.$id}">🔗 ${x.name}</option>`).join('') + `</optgroup>`;
     } else {
         state.categories.forEach(cat => {
             if (filter && filter !== 'FORM' && filter !== cat.$id) return;
@@ -135,7 +123,7 @@ export function updateCompSelect() {
         });
         if (!filter) {
              const uncategorized = state.materials.filter(x => !x.category_id);
-             if (uncategorized.length) html += `<optgroup label="سایر">` + uncategorized.map(x => `<option value="MAT:${x.$id}">${x.name}</option>`).join('') + `</optgroup>`;
+             if (uncategorized.length) html += `<optgroup label="Other">` + uncategorized.map(x => `<option value="MAT:${x.$id}">${x.name}</option>`).join('') + `</optgroup>`;
         }
     }
     sel.innerHTML = html;
@@ -145,7 +133,7 @@ export function setupDropdownListeners() {
     const filterEl = document.getElementById('comp-filter');
     if (filterEl) {
         const cats = state.categories.map(x => `<option value="${x.$id}">${x.name}</option>`).join('');
-        filterEl.innerHTML = `<option value="">همه...</option>${cats}<option value="FORM">فرمول‌ها (محصولات)</option>`;
+        filterEl.innerHTML = `<option value="">All...</option>${cats}<option value="FORM">Formulas</option>`;
         filterEl.onchange = updateCompSelect;
     }
 
@@ -159,7 +147,7 @@ function updateUnitSelect() {
     if (!unitSel) return;
 
     if (!val || val.startsWith('FORM:')) {
-        unitSel.innerHTML = '<option value="count">عدد</option>'; 
+        unitSel.innerHTML = '<option value="count">Count</option>'; 
         return;
     }
 

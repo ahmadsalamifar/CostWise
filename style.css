@@ -3,7 +3,23 @@
     src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Regular.woff2') format('woff2');
 }
 
-body { font-family: 'Vazirmatn', sans-serif; background-color: #f1f5f9; color: #1e293b; margin: 0; height: 100vh; overflow: hidden; }
+:root {
+    --app-font: 'Vazirmatn', sans-serif;
+}
+
+/* وقتی زبان انگلیسی است، فونت تغییر کند */
+[lang="en"] {
+    --app-font: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+body { 
+    font-family: var(--app-font); 
+    background-color: #f1f5f9; 
+    color: #1e293b; 
+    margin: 0; 
+    height: 100vh; 
+    overflow: hidden; 
+}
 
 /* اسکرول بار سفارشی */
 .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -40,6 +56,12 @@ body { font-family: 'Vazirmatn', sans-serif; background-color: #f1f5f9; color: #
 .currency-btn.active { background: white; color: #0f766e; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
 .currency-btn[data-val="rial"].active { color: #d97706; }
 
+/* اصلاح جهت برای زبان انگلیسی */
+[dir="ltr"] .input-field { text-align: left; }
+[dir="ltr"] .pr-8 { padding-right: 2rem; padding-left: 0.75rem; }
+[dir="ltr"] .pl-8 { padding-left: 2rem; padding-right: 0.75rem; }
+[dir="ltr"] .border-r-4 { border-right-width: 0; border-left-width: 4px; }
+
 @media print { 
     body { background: white; height: auto; overflow: visible; } 
     body * { visibility: hidden; } 
@@ -50,6 +72,5 @@ body { font-family: 'Vazirmatn', sans-serif; background-color: #f1f5f9; color: #
     #print-area { overflow: visible; padding: 0; }
 }
 
-/* اولویت بالا برای کلاس‌های کاربردی */
 .flex { display: flex !important; }
 .hidden { display: none !important; }

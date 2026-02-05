@@ -1,4 +1,4 @@
-// رندرینگ تب تنظیمات
+import { t } from '../../core/i18n.js';
 
 export function renderList(elementId, items, onDelete) {
     const el = document.getElementById(elementId);
@@ -33,7 +33,7 @@ export function setupBackupButton(onBackup) {
     if(container && !document.getElementById('btn-full-backup')) {
         const div = document.createElement('div');
         div.className = "max-w-4xl mx-auto mt-8 p-4 text-center border-t border-dashed";
-        div.innerHTML = `<button id="btn-full-backup" class="btn btn-primary mx-auto">📥 دانلود نسخه پشتیبان</button>`;
+        div.innerHTML = `<button id="btn-full-backup" class="btn btn-primary mx-auto">${t('backup_download')}</button>`;
         container.appendChild(div);
         document.getElementById('btn-full-backup').onclick = onBackup;
     }
