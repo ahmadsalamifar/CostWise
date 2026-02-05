@@ -7,62 +7,119 @@ export function setupScraperListeners(refreshCallback) {
     setupTestLinkButton();
 }
 
+/**
+ * راه‌اندازی دکمه بروزرسانی گروهی
+ * تغییر: تبدیل از حالت Bulk سروری به حالت Iterative کلاینتی (مرحله‌به‌مرحله)
+ */
 function setupBulkScraperButton(refreshCallback) {
     const btn = document.getElementById('btn-scraper-trigger');
     if (!btn) return;
 
+    // کلون کردن دکمه برای اطمینان از حذف لیسنرهای قبلی
     const newBtn = btn.cloneNode(true);
     btn.parentNode.replaceChild(newBtn, btn);
     
     newBtn.onclick = async () => {
-        if (!confirm('آیا می‌خواهید قیمت تمام کالاهای لینک‌دار را بروزرسانی کنید؟\n(تاریخچه قیمت‌ها نیز ذخیره خواهد شد)')) return;
+        // 1. شناسایی کالاهای دارای لینک
+        const targets = state.materials.filter(m => m.scraper_url && m.scraper_url.length > 5);
         
+        if (targets.length === 0) {
+            return showToast('هیچ کالایی دارای لینک معتبر برای بروزرسانی نیست.', 'error');
+        }
+
+        if (!confirm(`آیا می‌خواهید قیمت ${targets.length} کالا را به‌صورت مرحله‌به‌مرحله بروزرسانی کنید؟\n(این روش دقیق‌تر است اما بسته به تعداد کالاها زمان می‌برد)`)) return;
+        
+        // ذخیره وضعیت دکمه
         const originalHtml = newBtn.innerHTML;
-        newBtn.innerHTML = '⏳ <span class="hidden sm:inline">در حال دریافت...</span>';
         newBtn.disabled = true;
         newBtn.classList.add('opacity-70');
-        showToast('درخواست بروزرسانی ارسال شد، لطفاً صبر کنید...', 'info');
+        
+        let successCount = 0;
+        let failCount = 0;
+        const report = []; // جمع‌آوری گزارش برای نمایش در پایان
 
         try {
-            const result = await api.runScraper({ type: 'bulk' }); 
-            if (result.success && result.report) {
-                await savePriceHistory(result.report);
-                showScraperReport(result.report); 
-                refreshCallback(); 
-                showToast('بروزرسانی گروهی انجام شد', 'success');
-            } else {
-                showToast('خطا در اسکرپر: ' + (result.error || 'پاسخ نامشخص'), 'error');
+            showToast('شروع بروزرسانی مرحله‌به‌مرحله...', 'info');
+
+            // 2. حلقه روی کالاها (Step-by-Step Execution)
+            for (let i = 0; i < targets.length; i++) {
+                const item = targets[i];
+                
+                // نمایش پیشرفت روی دکمه
+                const percent = Math.round(((i + 1) / targets.length) * 100);
+                newBtn.innerHTML = `<span class="font-mono text-[10px] ml-1">(${i + 1}/${targets.length})</span> ⏳ ${percent}%`;
+
+                try {
+                    // استخراج تنظیمات ارز (تومان/ریال)
+                    let currency = 'toman';
+                    try {
+                        const rels = typeof item.unit_relations === 'string' ? JSON.parse(item.unit_relations) : item.unit_relations;
+                        if (rels && rels.scraper_currency) currency = rels.scraper_currency;
+                    } catch(e) {}
+
+                    // 3. ارسال درخواست تکی (Single Check)
+                    // چون درخواست تکی سریع است، تایم‌اوت نمی‌خورد
+                    const result = await api.runScraper({ 
+                        type: 'single_check', 
+                        url: item.scraper_url, 
+                        anchor: item.scraper_anchor, 
+                        factor: item.scraper_factor || 1, 
+                        currencyMode: currency 
+                    });
+
+                    if (result.success && result.data) {
+                        const newPrice = result.data.final_price;
+                        
+                        // 4. ذخیره در دیتابیس (آپدیت کالا + ثبت تاریخچه)
+                        await Promise.all([
+                            api.update(APPWRITE_CONFIG.COLS.MATS, item.$id, { price: newPrice }),
+                            api.create(APPWRITE_CONFIG.COLS.HISTORY, {
+                                material_id: item.$id,
+                                price: newPrice,
+                                date: new Date().toISOString()
+                            })
+                        ]);
+
+                        // آپدیت استیت لوکال برای نمایش فوری
+                        item.price = newPrice;
+                        
+                        report.push({ 
+                            status: 'success', 
+                            name: item.name, 
+                            new: newPrice, 
+                            found: result.data.found_price, 
+                            msg: 'بروزرسانی شد' 
+                        });
+                        successCount++;
+                    } else {
+                        throw new Error(result.error || 'قیمت در صفحه یافت نشد');
+                    }
+
+                } catch (itemError) {
+                    console.error(`خطا در کالا ${item.name}:`, itemError);
+                    report.push({ status: 'error', name: item.name, msg: itemError.message });
+                    failCount++;
+                }
+
+                // یک وقفه کوتاه (300ms) برای تنفس شبکه و جلوگیری از بلاک شدن UI
+                await new Promise(r => setTimeout(r, 300));
             }
-        } catch(e) { 
-            showToast('خطا در ارتباط: ' + e.message, 'error'); 
-        } finally { 
-            newBtn.innerHTML = originalHtml; 
+
+            // 5. پایان عملیات
+            showScraperReport(report);
+            refreshCallback(); // رندر مجدد لیست کالاها
+            showToast(`عملیات پایان یافت. ${successCount} موفق، ${failCount} ناموفق.`, 'success');
+
+        } catch (globalError) {
+            console.error(globalError);
+            showToast('خطای کلی در فرآیند: ' + globalError.message, 'error');
+        } finally {
+            // بازگرداندن دکمه به حالت اول
+            newBtn.innerHTML = originalHtml;
             newBtn.disabled = false;
             newBtn.classList.remove('opacity-70');
         }
     };
-}
-
-async function savePriceHistory(report) {
-    const updates = report.filter(item => item.status === 'success' && item.new);
-    if (updates.length === 0) return;
-
-    const historyPromises = updates.map(async (item) => {
-        try {
-            const material = state.materials.find(m => m.name === item.name || m.scraper_url === item.url);
-            if (material) {
-                await api.create(APPWRITE_CONFIG.COLS.HISTORY, {
-                    material_id: material.$id,
-                    price: parseFloat(item.new),
-                    date: new Date().toISOString()
-                });
-            }
-        } catch (err) {
-            console.error("Error saving history for:", item.name, err);
-        }
-    });
-
-    await Promise.all(historyPromises);
 }
 
 function setupTestLinkButton() {
