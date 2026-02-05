@@ -1,6 +1,6 @@
 import { api } from '../../core/api.js';
 import { APPWRITE_CONFIG, Query } from '../../core/config.js';
-import { formatPrice, formatDate } from '../../core/utils.js';
+import { formatPrice, formatDate, showToast } from '../../core/utils.js';
 
 let historyChart = null;
 
@@ -9,9 +9,8 @@ export async function loadPriceHistory(matId) {
     const container = document.getElementById('chart-container');
     const msg = container.querySelector('p');
     
-    if (!matId) return alert('لطفاً یک کالا انتخاب کنید.');
+    if (!matId) return showToast('لطفاً یک کالا انتخاب کنید.', 'error');
 
-    // حالت لودینگ
     msg.style.display = 'block';
     msg.innerHTML = '⏳ در حال دریافت اطلاعات...';
     ctx.classList.add('hidden');
@@ -38,7 +37,7 @@ export async function loadPriceHistory(matId) {
     } catch (e) {
         console.error(e);
         msg.innerHTML = '❌ خطا در دریافت اطلاعات';
-        alert('خطا: ' + e.message);
+        showToast('خطا: ' + e.message, 'error');
     }
 }
 

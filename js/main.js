@@ -1,9 +1,8 @@
 // نقطه ورود برنامه
 import { account, state, APPWRITE_CONFIG, Query } from './core/config.js';
 import { api } from './core/api.js';
-import { switchTab, toggleElement } from './core/utils.js';
+import { switchTab, toggleElement, showToast } from './core/utils.js';
 import { setupPrint } from './print.js'; 
-// اضافه کردن ماژول Layout
 import { injectAppLayout } from './layout/layout.js';
 
 import * as MaterialController from './features/materials/materialController.js';
@@ -14,17 +13,13 @@ import * as ReportController from './features/reports/reportController.js';
 
 async function initApp() {
     try {
-        // 1. تزریق ساختار HTML (اولین و مهمترین مرحله)
         injectAppLayout();
 
-        // 2. احراز هویت
         try { await account.get(); } 
         catch { await account.createAnonymousSession(); }
 
-        // 3. دریافت دیتا
         await refreshData();
         
-        // 4. راه‌اندازی ماژول‌ها
         FormulaController.init(refreshApp);
         MaterialController.init(refreshApp);
         SettingsController.init(refreshApp);
@@ -33,22 +28,19 @@ async function initApp() {
         
         setupPrint(); 
 
-        // 5. نمایش UI و تب‌ها
         toggleElement('loading-screen', false);
         toggleElement('app-content', true);
         
         setupTabs();
         switchTab('formulas');
         
-        // 6. رفرش اولیه لیست‌ها
         updateAllUI();
 
     } catch (err) {
         console.error(err);
-        // اگر المان لودینگ هنوز در صفحه است (چون layout تزریق شده)
         const loadingText = document.getElementById('loading-text');
         if(loadingText) loadingText.innerText = "خطا: " + err.message;
-        else alert("خطا: " + err.message);
+        else showToast(err.message, 'error');
     }
 }
 

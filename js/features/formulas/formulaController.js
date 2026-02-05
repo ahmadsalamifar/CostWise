@@ -1,7 +1,6 @@
-// کنترلر اصلی فرمول‌ها (نسخه سبک شده)
-import { state, APPWRITE_CONFIG } from '../../core/config.js'; // اضافه کردن APPWRITE_CONFIG
-import { api } from '../../core/api.js'; // اضافه کردن api برای update
-import { parseLocaleNumber, closeModal } from '../../core/utils.js';
+import { state, APPWRITE_CONFIG } from '../../core/config.js'; 
+import { api } from '../../core/api.js'; 
+import { parseLocaleNumber, closeModal, showToast } from '../../core/utils.js';
 import * as ListUI from './formulaList.js';
 import * as DetailUI from './formulaDetail.js';
 import * as Actions from './formulaActions.js';
@@ -13,14 +12,12 @@ export function init(refreshCb) {
     setTimeout(() => {
         ListUI.setupSearch(() => ListUI.renderList(state.activeFormulaId, selectFormula));
         
-        // دکمه‌های مدال جدید
         const btnCreate = document.getElementById('btn-create-formula');
         if(btnCreate) btnCreate.onclick = () => Actions.createFormula(refreshCb);
         
         const btnCancel = document.getElementById('btn-cancel-formula');
         if(btnCancel) btnCancel.onclick = () => closeModal('new-formula-modal');
 
-        // پنل جزئیات
         document.getElementById('form-add-comp').onsubmit = (e) => {
             e.preventDefault();
             addComponent(refreshCb);
@@ -29,7 +26,6 @@ export function init(refreshCb) {
         const btnSave = document.getElementById('btn-save-formula');
         if(btnSave) btnSave.onclick = () => Actions.saveFormulaChanges(refreshCb);
 
-        // ورودی‌ها (ذخیره لوکال)
         ['labor', 'overhead', 'profit'].forEach(key => {
             const inp = document.getElementById('inp-' + key);
             if(inp) inp.onchange = (e) => {
@@ -44,7 +40,6 @@ export function init(refreshCb) {
             };
         });
 
-        // دکمه‌های عملیاتی
         document.getElementById('btn-delete-formula').onclick = () => Actions.deleteFormula(refreshCb);
         document.getElementById('btn-duplicate-formula').onclick = () => Actions.duplicateFormula(refreshCb);
         document.getElementById('active-formula-name').onclick = () => Actions.renameFormula(refreshCb);
@@ -70,7 +65,6 @@ function selectFormula(id) {
     if (window.innerWidth < 1024) document.getElementById('detail-panel')?.scrollIntoView({ behavior: 'smooth' });
 }
 
-// مدیریت لوکال اجزا (Component Logic)
 async function addComponent(cb) {
     if (!state.activeFormulaId) return;
     const f = state.formulas.find(x => x.$id === state.activeFormulaId);
@@ -79,10 +73,15 @@ async function addComponent(cb) {
     const qty = parseFloat(document.getElementById('comp-qty').value);
     const unit = document.getElementById('comp-unit-select').value;
 
-    if (!val || !qty) return alert('اطلاعات ناقص است');
+    if (!val || !qty) return showToast('لطفاً محصول و تعداد را وارد کنید', 'error');
 
     const [typePrefix, id] = val.split(':');
     const type = typePrefix === 'MAT' ? 'mat' : 'form';
+
+    // جلوگیری از افزودن خود به خود (Self-Reference مستقیم)
+    if (type === 'form' && id === f.$id) {
+        return showToast('نمی‌توانید یک فرمول را به خودش اضافه کنید!', 'error');
+    }
     
     let comps = parseComponents(f.components);
     const exist = comps.find(c => c.id === id && c.type === type && c.unit === unit);

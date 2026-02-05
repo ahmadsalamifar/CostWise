@@ -1,6 +1,5 @@
-// ماژول دریافت قیمت آنلاین و ذخیره تاریخچه
 import { api } from '../../core/api.js';
-import { formatPrice } from '../../core/utils.js';
+import { formatPrice, showToast } from '../../core/utils.js';
 import { APPWRITE_CONFIG, state } from '../../core/config.js';
 
 export function setupScraperListeners(refreshCallback) {
@@ -12,7 +11,6 @@ function setupBulkScraperButton(refreshCallback) {
     const btn = document.getElementById('btn-scraper-trigger');
     if (!btn) return;
 
-    // جلوگیری از انباشت لیسنرها
     const newBtn = btn.cloneNode(true);
     btn.parentNode.replaceChild(newBtn, btn);
     
@@ -23,20 +21,20 @@ function setupBulkScraperButton(refreshCallback) {
         newBtn.innerHTML = '⏳ <span class="hidden sm:inline">در حال دریافت...</span>';
         newBtn.disabled = true;
         newBtn.classList.add('opacity-70');
+        showToast('درخواست بروزرسانی ارسال شد، لطفاً صبر کنید...', 'info');
 
         try {
             const result = await api.runScraper({ type: 'bulk' }); 
             if (result.success && result.report) {
-                // ذخیره تاریخچه قیمت‌ها برای آیتم‌هایی که تغییر کرده‌اند
                 await savePriceHistory(result.report);
-                
                 showScraperReport(result.report); 
                 refreshCallback(); 
+                showToast('بروزرسانی گروهی انجام شد', 'success');
             } else {
-                alert('خطا: ' + (result.error || 'پاسخ نامشخص'));
+                showToast('خطا در اسکرپر: ' + (result.error || 'پاسخ نامشخص'), 'error');
             }
         } catch(e) { 
-            alert('خطا در ارتباط: ' + e.message); 
+            showToast('خطا در ارتباط: ' + e.message, 'error'); 
         } finally { 
             newBtn.innerHTML = originalHtml; 
             newBtn.disabled = false;
@@ -45,22 +43,13 @@ function setupBulkScraperButton(refreshCallback) {
     };
 }
 
-// تابع جدید: ذخیره تاریخچه در دیتابیس
 async function savePriceHistory(report) {
-    // فیلتر کردن آیتم‌هایی که قیمت جدید دارند
     const updates = report.filter(item => item.status === 'success' && item.new);
-    
     if (updates.length === 0) return;
 
-    console.log(`Saving history for ${updates.length} items...`);
-
-    // برای هر آیتم آپدیت شده، یک رکورد در تاریخچه ایجاد می‌کنیم
     const historyPromises = updates.map(async (item) => {
         try {
-            // پیدا کردن ID کالا بر اساس نام یا URL (چون اسکرپر ممکن است ID برنگرداند)
-            // بهترین حالت این است که اسکرپر ID را برگرداند، اما اینجا از state مچ می‌کنیم
             const material = state.materials.find(m => m.name === item.name || m.scraper_url === item.url);
-            
             if (material) {
                 await api.create(APPWRITE_CONFIG.COLS.HISTORY, {
                     material_id: material.$id,
@@ -96,7 +85,7 @@ function setupTestLinkButton() {
         const factor = parseFloat(document.getElementById('mat-scraper-factor')?.value) || 1;
         const currencyMode = document.getElementById('mat-scraper-currency')?.value || 'toman';
         
-        if (!url) { alert('لطفاً لینک را وارد کنید'); return; }
+        if (!url) { showToast('لطفاً لینک را وارد کنید', 'error'); return; }
         
         const originalText = testBtn.innerHTML;
         testBtn.innerHTML = '⏳';
@@ -104,17 +93,13 @@ function setupTestLinkButton() {
         
         try {
             const res = await api.runScraper({ 
-                type: 'single_check', 
-                url, 
-                anchor, 
-                factor,
-                currencyMode 
+                type: 'single_check', url, anchor, factor, currencyMode 
             });
             
             if (res.success && res.data) {
                 const p = res.data;
                 const modeText = currencyMode === 'rial' ? 'ریال' : 'تومان';
-                alert(`✅ قیمت نهایی با ضریب: ${formatPrice(p.final_price)} تومان\n\n(قیمت یافت شده: ${formatPrice(p.found_price)} ${modeText})`);
+                showToast(`قیمت یافت شد: ${formatPrice(p.found_price)} ${modeText}`, 'success');
                 
                 const pInput = document.getElementById('mat-price');
                 if(pInput) {
@@ -123,10 +108,10 @@ function setupTestLinkButton() {
                     setTimeout(() => pInput.classList.remove('bg-green-100', 'text-green-800'), 2000);
                 }
             } else {
-                alert('❌ خطا: ' + (res.error || 'قیمت پیدا نشد'));
+                showToast('خطا: ' + (res.error || 'قیمت پیدا نشد'), 'error');
             }
         } catch(e) { 
-            alert('خطا: ' + e.message); 
+            showToast('خطا: ' + e.message, 'error'); 
         } finally { 
             testBtn.innerHTML = originalText;
             testBtn.disabled = false;

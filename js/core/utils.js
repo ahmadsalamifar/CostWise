@@ -1,5 +1,7 @@
 // ابزارهای عمومی و فرمت‌دهی
-// وظیفه: توابع خالص (Pure Functions) که در همه جای برنامه استفاده می‌شوند
+import { showToast as showToastFunc } from './toast.js';
+
+export const showToast = showToastFunc;
 
 /**
  * تبدیل اعداد فارسی/عربی به انگلیسی و پارس کردن به Float
@@ -12,7 +14,6 @@ export function parseLocaleNumber(stringNumber) {
     str = str.replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
              .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
              
-    // حذف همه کاراکترها بجز اعداد، نقطه و منفی
     const clean = str.replace(/[^0-9.-]/g, '');
     
     if (!clean) return 0;
@@ -46,9 +47,7 @@ export function getDateBadge(dateString) {
     return `<span class="text-[10px] px-1.5 py-0.5 rounded border ${colorClass} whitespace-nowrap">${text}</span>`;
 }
 
-// مدیریت تب‌ها
 export function switchTab(id) {
-    // لیست تمام تب‌های موجود در HTML
     const tabs = ['formulas', 'materials', 'reports', 'categories', 'store'];
     
     tabs.forEach(t => {
@@ -65,13 +64,11 @@ export function switchTab(id) {
     if(targetBtn) targetBtn.classList.add('active');
 }
 
-// مدیریت نمایش/مخفی کردن المان‌ها (برای مدال‌ها و لودینگ)
 export function toggleElement(id, show) {
     const el = document.getElementById(id);
     if (!el) return;
     if (show) {
         el.classList.remove('hidden');
-        // اگر کلاس modal-overlay دارد باید flex شود تا وسط چین بماند
         if (el.classList.contains('modal-overlay')) el.style.display = 'flex';
     } else {
         el.classList.add('hidden');

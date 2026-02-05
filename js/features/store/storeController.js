@@ -1,14 +1,11 @@
-// کنترلر فروشگاه
 import { api } from '../../core/api.js';
 import { state, APPWRITE_CONFIG, Query } from '../../core/config.js';
+import { showToast } from '../../core/utils.js';
 import * as UI from './storeUI.js';
 
-export function init() {
-    // اگر لاجیک خاصی برای init باشد اینجا می‌آید
-}
+export function init() {}
 
 export async function renderStore(refreshCb) {
-    // دریافت فرمول‌های عمومی (فقط اگر قبلا نگرفته باشیم یا بخواهیم رفرش کنیم)
     if (state.publicFormulas.length === 0) {
         try {
             const res = await api.list(APPWRITE_CONFIG.COLS.FORMS, [Query.equal('is_public', true), Query.limit(50)]);
@@ -29,7 +26,7 @@ async function copyToMyList(id, cb) {
             components: t.components,
             labor: t.labor, overhead: t.overhead, profit: t.profit, is_public: false
         });
-        alert('اضافه شد');
+        showToast('فرمول به لیست شما اضافه شد', 'success');
         cb();
-    } catch(e) { alert(e.message); }
+    } catch(e) { showToast(e.message, 'error'); }
 }

@@ -1,7 +1,6 @@
-// عملیات CRUD و API فرمول‌ها
 import { api } from '../../core/api.js';
 import { APPWRITE_CONFIG, state } from '../../core/config.js';
-import { closeModal } from '../../core/utils.js';
+import { closeModal, showToast } from '../../core/utils.js';
 import { resetSaveButton } from './formulaUIHelpers.js';
 
 export async function saveFormulaChanges(cb) {
@@ -21,8 +20,9 @@ export async function saveFormulaChanges(cb) {
         });
         resetSaveButton();
         cb(); 
+        showToast('فرمول ذخیره شد', 'success');
     } catch(e) {
-        alert('خطا در ثبت: ' + e.message);
+        showToast('خطا در ثبت: ' + e.message, 'error');
         if(btn) { btn.innerText = 'ثبت تغییرات'; btn.disabled = false; }
     }
 }
@@ -36,14 +36,18 @@ export async function createFormula(cb) {
         });
         closeModal('new-formula-modal');
         cb();
-    } catch(e) { alert(e.message); }
+        showToast('محصول جدید ایجاد شد', 'success');
+    } catch(e) { showToast(e.message, 'error'); }
 }
 
 export async function deleteFormula(cb) {
-    if(confirm('حذف شود؟')) {
-        await api.delete(APPWRITE_CONFIG.COLS.FORMS, state.activeFormulaId);
-        state.activeFormulaId = null;
-        cb();
+    if(confirm('آیا مطمئن هستید که این محصول حذف شود؟')) {
+        try {
+            await api.delete(APPWRITE_CONFIG.COLS.FORMS, state.activeFormulaId);
+            state.activeFormulaId = null;
+            cb();
+            showToast('محصول حذف شد', 'success');
+        } catch(e) { showToast(e.message, 'error'); }
     }
 }
 
@@ -57,14 +61,17 @@ export async function duplicateFormula(cb) {
             labor: f.labor, overhead: f.overhead, profit: f.profit
         });
         cb();
-    } catch(e) { alert(e.message); }
+        showToast('کپی فرمول ایجاد شد', 'success');
+    } catch(e) { showToast(e.message, 'error'); }
 }
 
 export async function renameFormula(cb) {
     const f = state.formulas.find(x => x.$id === state.activeFormulaId);
     const n = prompt('نام جدید:', f.name);
     if (n && n !== f.name) {
-        await api.update(APPWRITE_CONFIG.COLS.FORMS, f.$id, { name: n });
-        cb();
+        try {
+            await api.update(APPWRITE_CONFIG.COLS.FORMS, f.$id, { name: n });
+            cb();
+        } catch(e) { showToast(e.message, 'error'); }
     }
 }

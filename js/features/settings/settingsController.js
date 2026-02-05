@@ -1,6 +1,6 @@
-// کنترلر تنظیمات
 import { api } from '../../core/api.js';
 import { state, APPWRITE_CONFIG } from '../../core/config.js';
+import { showToast } from '../../core/utils.js';
 import * as UI from './settingsUI.js';
 
 export function init(refreshCb) {
@@ -23,12 +23,17 @@ async function addItem(col, data, inputId, cb) {
         await api.create(col, data);
         document.getElementById(inputId).value = '';
         cb();
-    } catch(e) { alert(e.message); }
+        showToast('آیتم اضافه شد', 'success');
+    } catch(e) { showToast(e.message, 'error'); }
 }
 
 async function delItem(col, id, cb) {
     if(!confirm('حذف شود؟')) return;
-    try { await api.delete(col, id); cb(); } catch(e) { alert(e.message); }
+    try { 
+        await api.delete(col, id); 
+        cb(); 
+        showToast('حذف شد', 'success');
+    } catch(e) { showToast(e.message, 'error'); }
 }
 
 function exportData() {
@@ -46,4 +51,5 @@ function exportData() {
     document.body.appendChild(a);
     a.click();
     a.remove();
+    showToast('نسخه پشتیبان دانلود شد', 'info');
 }
