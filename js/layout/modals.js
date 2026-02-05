@@ -17,10 +17,10 @@ export function getLanguageModalHTML() {
             <div class="text-5xl mb-6">🌍</div>
             <h2 class="text-xl font-bold mb-8 text-slate-800">${t('select_lang')}</h2>
             <div class="flex flex-col gap-3">
-                <button class="btn bg-teal-600 hover:bg-teal-700 text-white py-3 text-lg shadow-lg" onclick="selectAppLang('fa')">
+                <button id="btn-lang-fa" class="btn bg-teal-600 hover:bg-teal-700 text-white py-3 text-lg shadow-lg">
                     🇮🇷 فارسی
                 </button>
-                <button class="btn bg-indigo-600 hover:bg-indigo-700 text-white py-3 text-lg shadow-lg" onclick="selectAppLang('en')">
+                <button id="btn-lang-en" class="btn bg-indigo-600 hover:bg-indigo-700 text-white py-3 text-lg shadow-lg">
                     🇺🇸 English
                 </button>
             </div>
