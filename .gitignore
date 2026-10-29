@@ -32,3 +32,50 @@ logs
 # Build output
 dist/
 build/
+# ====================================================================
+# Additional Clean Workspace Protection (Auto-Configured)
+# ====================================================================
+
+# Operating System Files
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# IDEs and Text Editors
+*.iws
+*.iml
+*.ipr
+out/
+.vscode/.history/
+.vscode/*.log
+*.sublime-workspace
+*~
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# Environment Variables and Secrets
+*.pem
+*.key
+
+# Logs
+.pnpm-debug.log*
+
+# Tool Caches
+graphify-out/cache/
+
+# Node & Web Dependencies/Builds
+.cache/
+.parcel-cache/
+.turbo/
+.next/
+.nuxt/
